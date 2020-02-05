@@ -18,7 +18,9 @@ metadata_plot <- read_excel("data_scripts/BLEA_LUNI_metadata.xlsx", sheet = 1)
 metadata_idnv <- read_excel("data_scripts/BLEA_LUNI_metadata.xlsx", sheet = 2)
 
 
-### read in yearly data ####
+### read in yearly data 
+#~ remove blank rows 
+#~ add explicit year
 
 ### 2016 data is wonky (different columns, and values w/in columns.. & has the multiple seeding starts)
 nipomo2016 <- read_csv("data_scripts\nipomo2016.csv")
@@ -26,12 +28,15 @@ nipomo2016 <- nipomo2016[!apply(is.na(nipomo2016) | nipomo2016 == "", 1, all),]
 nipomo2016$year <- "2016"
 
 
-nipomo2017 <- read_csv("data_scripts/nipomolupine2017.csv")
+nipomo2017 <- read_csv("data_scripts/nipomolupine2017.csv") %>% 
+  rename("seedpods" = "seeds")
 nipomo2017 <- nipomo2017[!apply(is.na(nipomo2017) | nipomo2017 == "", 1, all),] # remove blank rows
 nipomo2017$year <- "2017"
 
 
-nipomo2018 <- read_csv("data_scripts/nipomolupine2018.csv")
+
+nipomo2018 <- read_csv("data_scripts/nipomolupine2018.csv")  %>% 
+  rename("seedpods" = "seeds")
 nipomo2018 <- nipomo2018[!apply(is.na(nipomo2018) | nipomo2018== "", 1, all),]
 nipomo2018$year <- "2018"
 
@@ -46,13 +51,13 @@ yearlydata$current.year <- as.factor(as.character(yearlydata$current.year))
 
 
 
-#### bind all together ####
+#### bind all together 
 bind_17_18 <- bind_rows(nipomo2017, nipomo2018)
 all_data <- bind_rows(bind_17_18, nipomo2019)
 all_data$year <- as.factor(all_data$year)
 ```
 
-
+### explore ###
 ```{r general trend}
 
 ### count the number of individuals over time
@@ -98,12 +103,134 @@ ggplot(yearlydata, aes(current.year, germination)) +
   )
 ```
 
+```{r other traits}
+ # what proportion of germinated individuals survive and bear seeds
+ggplot(yearlydata, aes(current.year, proportionseeded)) +
+  geom_boxplot() +
+  facet_wrap()
+
+# what is the fecundity?
+# yearly average 
+fecund <- all_data %>% 
+  group_by(year) %>% 
+  summarise(
+    avg_pods = mean(seedpods, na.rm = T),
+    sd = sd(seedpods, na.rm = T)
+  )
+total_avg <- mean(fecund$avg_pods)
+### next steps, what variables best predict fecundity?
+
+```
+
+
+### conceptual model
+```{r}
+
+
+# N_t == number of individuals in a given year 
+# g == germination rate
+#  g ~ 'environmental conditions' + ??
+#
+# b == # in seed bank
+#  b_t ~ ('b in preious year'  - 'seed death rate') + ('#indv in previous year' * 'fecundity')
+
+
+## state variables -- should be generated on a microhabitat/treatment basis
+# b0 <- # seeds planted
+# d <-  # death rate of seeds (how can we figure this out!?!)
+# f <-  # fecundity need to find a way to model this so we can randomize based on some known mean and sd
+# g <-  # germination rate
+  
 
 
 
+sim_lupin <- function(planted) {
+  
+  N <- vector(length = 6)
+  b <- vector(length = 6)
+  b[1] <- planted
+   ## need to figure out the proper distribution for these ( for each treatment type?)
+  d <- rnorm(5, .2, .02)
+  f <- rnorm(5, 16, 4)
+  g <- rnorm(5, .05, .005)
+  ## if less than 0 turn to 0
+  g[g<0] <- 0
+  f[f<0] <- 0
+  
+  for(year in 1:5) {
+    N[year] <- (b[year] - d[year])*g[year]
+    b[year + 1] <- (N[year] * f[year]) + (b[year] - N[year])
+  }
+  
+  res <- data.frame(year = seq(1,5), pop = N[1:5], bank = b[1:5])
+  res$scenario <- planted
+  
+  return(res)
+}
+
+sim_lupin(40)
+
+```
+
+```{r simulate}
+### how to choose necessary planting
+
+planted <- seq(100, 10000, 100)
+
+sim_list <- lapply(planted, sim_lupin)
+
+sim <- bind_rows(sim_list)
+seeds_needed <- sim %>% 
+  filter(year == 5 & pop > 5000) %>% 
+  filter(scenario == min(scenario)) %>% ### do we want to select the min or average here?
+  select(scenario) %>% 
+  as.numeric()
+
+
+## next to do: monte-carlo simulation to see how randomness effects each of these
 
 
 
+# plot the trend
+ggplot(sim, aes(year, pop, group = as.factor(scenario), color = as.factor(scenario))) +
+  geom_line() +
+  geom_hline(yintercept = 5000, linetype = "dashed", size = 1) +
+  theme(legend.position = "none")
+
+
+```
+
+
+
+```{r monte carlo}
+
+trial <- vector(length = 200)
+
+planted <- seq(1000, 20000, 100)
+
+for (i in 1:length(trial)) {
+  sim_list <- lapply(planted, sim_lupin)
+
+  sim <- bind_rows(sim_list)
+  
+  seeds_needed <- sim %>% 
+    filter(year == 5 & pop > 5000) %>% 
+    filter(scenario == min(scenario)) %>% ### do we want to select the min or average here?
+    select(scenario) %>% 
+    as.numeric()
+  
+  trial[i] <- seeds_needed
+  
+  if(i%%100 == 0) {
+    print(paste(i/length(trial)))
+  }
+
+  
+}
+# mean and sd of seeds needed
+mean(trial)
+sd(trial)
+```
 
 
 
