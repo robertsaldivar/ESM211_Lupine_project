@@ -1,0 +1,140 @@
+---
+title: "LUNIMaternal"
+author: "Justin Luong"
+date: "June 12, 2018"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+luni <- read.csv("C:/Users/bacon/Documents/Miniature Lupine Maternal Effects/lunigen2.csv")
+
+require(plyr)
+
+gen1 <- read.csv("C:/Users/bacon/Documents/Miniature Lupine Maternal Effects/lunigen1.csv")
+
+```
+
+```{r}
+droughtluni <- subset(luni, Drought=="drought")
+
+controlluni <- subset(luni, Drought=="control")
+
+t.test(droughtluni$wrootdiameter,controlluni$wrootdiameter)
+
+t.test(droughtluni$drootdiameter,controlluni$drootdiameter)
+
+t.test(droughtluni$wetbiomass,controlluni$wetbiomass) #*
+
+t.test(droughtluni$drybiomass,controlluni$drybiomass) 
+
+t.test(droughtluni$wetroot,controlluni$wetroot) 
+t.test(droughtluni$wetshoot,controlluni$wetshoot) 
+
+t.test(droughtluni$dryroot,controlluni$dryroot) 
+
+t.test(droughtluni$wBGB,controlluni$wBGB) 
+t.test(droughtluni$dBGB,controlluni$dBGB)
+
+t.test(droughtluni$wAGB,controlluni$wAGB)  #*
+t.test(droughtluni$dAGB,controlluni$dAGB)
+
+t.test(droughtluni$rootshootratio,controlluni$rootshootratio)
+
+
+droughtluni <- subset(luni, Drought=="drought")
+
+controlluni <- subset(luni, Drought=="control")
+
+t.test(droughtluni$wrootdiameter,controlluni$wrootdiameter)
+
+t.test(droughtluni$drootdiameter,controlluni$drootdiameter)
+
+t.test(droughtluni$wetbiomass,controlluni$wetbiomass) #*
+
+t.test(droughtluni$drybiomass,controlluni$drybiomass) 
+
+t.test(droughtluni$wetroot,controlluni$wetroot) 
+t.test(droughtluni$wetshoot,controlluni$wetshoot) 
+
+t.test(droughtluni$dryroot,controlluni$dryroot) 
+
+t.test(droughtluni$wBGB,controlluni$wBGB) 
+t.test(droughtluni$dBGB,controlluni$dBGB)
+
+t.test(droughtluni$wAGB,controlluni$wAGB)  #*
+t.test(droughtluni$dAGB,controlluni$dAGB)
+
+plot(gen1$seeds~gen1$leaves)
+abline(gen1$seeds~gen1$leaves)
+summary(gen1$seeds~gen1$leaves)
+summary(lm(gen1$seeds~gen1$leaves))
+```
+
+```{r}
+#to visualize correlations, you can use visual plots, Positive correlations are displayed in blue and negative correlations in red color. Color intensity and the size of the circle are proportional to the correlation coefficients.
+
+ 
+#https://cran.r-project.org/web/packages/corrplot/vignettes/corrplot-intro.html
+
+g1 <- as.matrix(gen1)
+g_1 <- g1[,-1]
+rownames(g_1) <- g1[,1]
+g_1[5:5] <- list(NULL)
+
+library(corrplot)
+L<-cor(g1)
+
+
+#reorder
+corrplot(L, type="upper", order="hclust")
+
+
+#calculate p value of correlations
+cor.mtest <- function(envmatrix) {
+  mat <- as.matrix(envmatrix)
+  n <- ncol(envmatrix)
+  p.mat<- matrix(NA, n, n)
+  diag(p.mat) <- 0
+    for (i in 1:(n - 1)) {
+       for (j in (i + 1):n) {
+          tmp <- cor.test(mat[, i], mat[, j])
+p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+}
+}
+colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+  p.mat }
+
+ 
+
+ # matrix of the p-value of the correlation
+
+p.mat <- cor.mtest(envmatrix)
+
+head(p.mat[, 1:5])
+
+
+
+#leave blank on no significant coefficient
+corrplot(L, type="upper", order="hclust", p.mat = p.mat, sig.level = 0.05, insig = "blank")
+
+#PEARSONS Correlations
+cor(envmatrix,use="everything",method=c("pearson"))
+
+#this doesn't give you significance values though.
+library(Hmisc)
+
+res2 <- rcorr(as.matrix(envmatrix))
+
+# Extract the correlation coefficients
+res2$r
+
+# Extract p-values
+res2$P
+
+library("PerformanceAnalytics")
+
+my_data<-envmatrix
+
+chart.Correlation(envmatrix,histogram=TRUE,psch=19)
+```
+```

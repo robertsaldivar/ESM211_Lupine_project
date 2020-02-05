@@ -1,0 +1,402 @@
+---
+title: "nipomo2018"
+author: "Justin Luong"
+date: "June 22, 2018"
+output: word_document
+---
+
+```{r}
+nipomo2018 <- read.csv("C:/Users/bacon/Documents/CCBER/Nipomo Lupine/Datasheets/nipomolupine2018.csv")
+
+nipomo2018 <- nipomo2018[!apply(is.na(nipomo2018) | nipomo2018 == "", 1, all),] # remove blank rows
+
+fouryeardata <-read.csv("C:/Users/bacon/Documents/CCBER/Nipomo Lupine/Datasheets/nipomo4years.csv")
+
+fouryeardata$current.year <- as.factor(as.character(fouryeardata$current.year))
+
+
+
+require(plyr)
+require(ggplot2)
+library(grid)
+library(gridExtra)
+library(ggplot2)
+library(nnet)
+library(foreign)
+library(agricolae)
+library(ggsignif)
+library(multcomp)
+
+cbbPalette <- c("#56B4E9", "#999999", "#E69F00", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+```
+```{r Scarifcation}
+#SEED PRODUCTION
+Scarification18 <- subset(nipomo2018, Scarification=="scarified")
+unscar18 <- subset(nipomo2018, Scarification=="unscarified")
+t.test(Scarification18$seeds,unscar18$seeds) # no significance
+summary(aov(seeds~Scarification18,data=nipomo2018)) # nosig
+
+scargraph18 <- ddply(nipomo2018,c("Scarification"),
+                   avgseeds = mean(seeds),
+                   SEseeds = sd(seeds)/(sqrt(length(avgseeds))))
+
+# GERMINATATION
+percentgerm18 <- ddply (nipomo2018, c("Slope","rep","cage","Aspect","Scarification"),summarise,
+                      count = length(Scarification),
+                      percent = (count/(20)*100),
+                      SDgerm  = sd(percent, na.rm = TRUE),
+                      SEgerm  = sd(percent)/(sqrt(length(percent))),
+                      final = length(seeds[seeds > 0]))
+
+pg18 <- ddply (percentgerm18, c("Scarification"),summarise,
+             avgpercent = mean(percent),
+             SDgerm  = sd(percent, na.rm = TRUE),
+             SEgerm  = sd(percent)/(sqrt(length(percent))),
+             ASEgerm   = mean(SEgerm))
+                      
+
+scary18 <- subset(percentgerm18, Scarification=="scarified")
+unscary18 <- subset (percentgerm18, Scarification=="unscarified")
+t.test(scary18$percent,unscary18$percent)
+
+
+scar_germ18 <- ggplot(aes(x=Scarification,y=avgpercent,ymax=avgpercent+SEgerm,ymin=avgpercent-SEgerm,color=Scarification,fill=Scarification),data=pg18)+geom_bar(stat="identity",position="dodge",color="black", show.legend = FALSE)+ylab("Average Percent Germination")+theme(panel.border=element_rect(color="black", size=1,fill=NA))+geom_errorbar(position=position_dodge(),color="black",width=0.9)+scale_fill_manual(values=cbbPalette)
+
+summary(aov(totalseeds~as.factor(current.year),data=seeded))
+TukeyHSD(aov(totalseeds~as.factor(current.year),data=seeded))
+
+seedingbyyear <- ddply(seeded, c("current.year"), summarise,
+                       avgseeds = mean(totalseeds),
+                       SEseeds = sd(totalseeds)/(sqrt(length(totalseeds))))
+
+seedingbyyear$current.year<-as.factor(seedingbyyear$current.year)
+
+seedyeargraph <- ggplot(aes(x=current.year, y=avgseeds, ymax=avgseeds+SEseeds, ymin=avgseeds-SEseeds, color=current.year, fill=current.year),data=seedingbyyear)+geom_bar(stat="identity", position="dodge", color="black", show.legend = F)+ylab("Average Seedpod Production")+xlab("Year Monitored")+theme(panel.border=element_rect(color="black", size=1, fill=NA))+geom_errorbar(position=position_dodge(), color="black",width = 0.9)+scale_fill_manual(values=cbbPalette)
+
+summary(aov(percent~as.factor(current.year),data=fouryeardata))
+TukeyHSD(aov(percent~as.factor(current.year),data=fouryeardata))
+
+germbyyear <- ddply(fouryeardata, c("current.year"), summarise,
+                       avgseeds = mean(percent),
+                       SEseeds = sd(percent)/(sqrt(length(percent))))
+
+germbyyear$current.year<-as.factor(germbyyear$current.year)
+
+germyeargraph <- ggplot(aes(x=current.year, y=avgseeds, ymax=avgseeds+SEseeds, ymin=avgseeds-SEseeds, color=current.year, fill=current.year),data=germbyyear)+geom_bar(stat="identity", position="dodge", color="black", show.legend = F)+ylab("Average Percent Germination")+xlab("Year Monitored")+theme(panel.border=element_rect(color="black", size=1, fill=NA))+geom_errorbar(position=position_dodge(), color="black",width = 0.9)+scale_fill_manual(values=cbbPalette)
+
+summary(aov(proportionseeded~as.factor(current.year),data=germinated))
+TukeyHSD(aov(proportionseeded~as.factor(current.year),data=germinated))
+
+proportionbyyear <- ddply(germinated, c("current.year"), summarise,
+                       avgproportion = mean(proportionseeded),
+                       SEproportion = sd(proportionseeded)/(sqrt(length(proportionseeded))))
+
+proportionbyyear$current.year<-as.factor(proportionbyyear$current.year)
+
+proportionyeargraph <- ggplot(aes(x=current.year, y=avgproportion, ymax=avgproportion+SEproportion, ymin=avgproportion-SEproportion, color=current.year, fill=current.year),data=proportionbyyear)+geom_bar(stat="identity", position="dodge", color="black", show.legend = F)+ylab("Avg Proportion of Germinants that Reached Reproduction")+xlab("Year Monitored")+theme(panel.border=element_rect(color="black", size=1, fill=NA))+geom_errorbar(position=position_dodge(), color="black",width = 0.9)+scale_fill_manual(values=cbbPalette)
+
+grid.arrange(germyeargraph, seedyeargraph,proportionyeargraph,ncol=3)
+```
+
+
+```{r}
+summary(aov(percent~Topo*caged,data=fouryeardata))  #sig*
+TukeyHSD(aov(percent~Topo*caged, data=fouryeardata))
+
+#Topography
+Germ_Topo <- ddply(fouryeardata, c("Topo"),summarise,
+                   avgpercentgerm = mean(percent),
+                   error = sd(percent)/(sqrt(length(percent))))
+
+
+
+GermGraph_Topo <- ggplot(aes(x=Topo,y=avgpercentgerm,fill=Topo,color=Topo),data=Germ_Topo)+geom_bar(stat="identity",position="dodge",color="black",show.legend=FALSE)+scale_fill_manual(values=cbbPalette)  + geom_errorbar(aes(ymax=avgpercentgerm+error, ymin=avgpercentgerm-error),position="dodge",color="black",width=0.9) + ylab("Avg % Germination")+xlab("Topography")+theme(panel.border=element_rect(color="black",size=1,fill=NA))
+
+#Slope and Aspect Separate
+summary(aov(percent~cage+Slope+Aspect,data=fouryeardata))  #Sig**
+TukeyHSD(aov(percent~cage+Slope+Aspect, data=fouryeardata))
+
+Germ_Aspect <-ddply(fouryeardata, c("Aspect"),summarise,
+                   avgpercentgerm = mean(percent),
+                   error = sd(percent)/(sqrt(length(percent))))
+
+Germ_Slope <-ddply(fouryeardata, c("Slope"),summarise,
+                   avgpercentgerm = mean(percent),
+                   error = sd(percent)/(sqrt(length(percent))))
+
+GermGraph_Aspect <- ggplot(aes(x=Aspect,y=avgpercentgerm,fill=Aspect,color=Aspect),data=Germ_Aspect)+geom_bar(stat="identity",position="dodge",color="black",show.legend=FALSE)+scale_fill_manual(values=cbbPalette)  + geom_errorbar(aes(ymax=avgpercentgerm+error, ymin=avgpercentgerm-error),position="dodge",color="black",width=0.9) + ylab("Avg % Germination")+xlab("Aspect")+theme(panel.border=element_rect(color="black",size=1,fill=NA))
+
+GermGraph_Slope <- ggplot(aes(x=Slope,y=avgpercentgerm,fill=Slope,color=Slope),data=Germ_Slope)+geom_bar(stat="identity",position="dodge",color="black",show.legend=FALSE)+scale_fill_manual(values=cbbPalette)  + geom_errorbar(aes(ymax=avgpercentgerm+error, ymin=avgpercentgerm-error),position="dodge",color="black",width=0.9) + ylab("Avg % Germination")+xlab("Slope")+theme(panel.border=element_rect(color="black",size=1,fill=NA))
+
+GerminationPercentage <-grid.arrange(GermGraph_Topo, arrangeGrob(GermGraph_Aspect,GermGraph_Slope, ncol=2), ncol=1, heights=c(1,1))
+
+```
+
+
+```{r caging}
+summary(aov(percent~Topo*caged, data=fouryeardata))   #sig**
+TukeyHSD(aov(percent~Topo*caged, data=fouryeardata))
+
+t.test(percent~caged, data=fouryeardata)
+
+Germ_Cage <- ddply(fouryeardata, c("caged"),summarise,
+                   avgpercentgerm = mean(percent),
+                   error = sd(percent)/(sqrt(length(percent))))
+
+GermGraph_Cage <- ggplot(aes(x=caged,y=avgpercentgerm,fill=caged,color=caged),data=Germ_Cage)+geom_bar(stat="identity",position="dodge",color="black",show.legend=FALSE)+scale_fill_manual(values=cbbPalette)  + geom_errorbar(aes(ymax=avgpercentgerm+error, ymin=avgpercentgerm-error),position="dodge",color="black",width=0.9) + ylab("Avg % Germination")+xlab("Presence of Caging")+theme(panel.border=element_rect(color="black",size=1,fill=NA))
+
+summary(aov(totalseeds~Topo+caged, data=germinated))
+TukeyHSD(aov(totalseeds~Topo+caged, data=germinated))
+
+t.test(totalseeds~caged, data=germinated)
+
+Seeds_cage <- ddply(germinated, c("caged"),summarise,
+                   avgseeds = mean(totalseeds),
+                   error = sd(totalseeds)/(sqrt(length(totalseeds))))
+
+SeedsGraph_Cage <- ggplot(aes(x=caged,y=avgseeds,fill=caged,color=caged),data=Seeds_cage)+geom_bar(stat="identity",position="dodge",color="black",show.legend=FALSE)+scale_fill_manual(values=cbbPalette)  + geom_errorbar(aes(ymax=avgseeds+error, ymin=avgseeds-error),position="dodge",color="black",width=0.9) + ylab("Avg Seed Pod Production")+xlab("Presence of Caging")+theme(panel.border=element_rect(color="black",size=1,fill=NA))
+
+EffectofCaging <- grid.arrange(GermGraph_Cage,SeedsGraph_Cage,ncol=2)
+
+germinated <- subset(fouryeardata, germination>0)
+
+percentcage <- ddply(germinated, c("caged","rep"), summarise,
+                     avgseeds = mean(totalseeds),
+                     percentsevere = sum(severity=="Severe")/length(severity))
+
+severepercent <- ddply(percentcage, "caged", summarise,
+                      avg = mean(percentsevere)*100,
+                      SE = (sd(percentsevere)/sqrt(length(percentsevere))*100))
+
+t.test(percentsevere~caged, data=percentcage)
+TukeyHSD(aov(percentsevere~caged,data=percentcage))
+
+cage_v_severe <- ggplot(aes(x=caged,y=avg, fill = caged),data=severepercent)+scale_fill_manual(values=cbbPalette)+geom_bar(stat="identity",position="dodge",color="black", show.legend = FALSE)+geom_errorbar(aes(ymax=avg+SE,ymin=avg-SE,position="dodge"),color="black",width=0.9)+xlab("Presence of Caging")+ylab("Average Chance of Severe Herbivory (%)")+theme(panel.border=element_rect(color="black",size=1,fill=NA))
+
+seeded <- subset(fouryeardata, totalseeds>0)
+summary(aov(totalseeds~severity, data=seeded))
+TukeyHSD(aov(totalseeds~severity, data=seeded))
+
+severeseeds <- ddply(seeded, "severity", summarise,
+                     total = sum(totalseeds),
+                     averageseeds = mean(totalseeds),
+                     SE = sd(totalseeds)/sqrt(length(totalseeds)),
+                     order = 0)
+
+
+Severeseedsgraph <- ggplot(aes(x=severity,y=averageseeds, fill = severity),data=severeseeds)+geom_bar(stat="identity",position="dodge",color="black", show.legend = FALSE)+geom_errorbar(aes(ymax=averageseeds+SE,ymin=averageseeds-SE,position="dodge"),color="black",width=0.9)+xlab("Degree of Herbivory")+ylab("Average Seed Pod Production")+theme(panel.border=element_rect(color="black",size=1,fill=NA))+scale_fill_manual(values=cbbPalette)
+
+
+grid.arrange(cage_v_severe, Severeseedsgraph, ncol=2)
+
+```
+
+```{r yearly seeding}
+summary(aov(totalseeds~caged+Topo,data=fouryeardata))
+TukeyHSD(aov(totalseeds~caged+Topo,data=fouryeardata))
+
+Seeds_Topo <- ddply(fouryeardata, c("Topo"),summarise,
+                   avgseed = mean(totalseeds),
+                   error = sd(totalseeds)/(sqrt(length(totalseeds))))
+
+SeedsGraph_Topo <- ggplot(aes(x=Topo,y=avgseed,fill=Topo,color=Topo),data=Seeds_Topo)+geom_bar(stat="identity",position="dodge",color="black",show.legend=FALSE)+scale_fill_manual(values=cbbPalette)  + geom_errorbar(aes(ymax=avgseed+error, ymin=avgseed-error),position="dodge",color="black",width=0.9) + ylab("Avg Seed Pod Production")+xlab("Topography")+theme(panel.border=element_rect(color="black",size=1,fill=NA))
+
+
+summary(aov(totalseeds~cage+Aspect+Slope,data=fouryeardata))
+TukeyHSD(aov(totalseeds~cage+Aspect+Slope,data=fouryeardata))
+
+Seeds_Aspect <-ddply(fouryeardata, c("Aspect"),summarise,
+                   avgseed = mean(totalseeds),
+                   error = sd(totalseeds)/(sqrt(length(totalseeds))))
+
+Seeds_Slope <-ddply(fouryeardata, c("Slope"),summarise,
+                   avgseed = mean(totalseeds),
+                   error = sd(totalseeds)/(sqrt(length(totalseeds))))
+
+SeedsGraph_Aspect <- ggplot(aes(x=Aspect,y=avgseed,fill=Aspect,color=Aspect),data=Seeds_Aspect)+geom_bar(stat="identity",position="dodge",color="black",show.legend=FALSE)+scale_fill_manual(values=cbbPalette)  + geom_errorbar(aes(ymax=avgseed+error, ymin=avgseed-error),position="dodge",color="black",width=0.9) + ylab("Avg Seed Pod Production")+xlab("Aspect")+theme(panel.border=element_rect(color="black",size=1,fill=NA))
+
+SeedsGraph_Slope <- ggplot(aes(x=Slope,y=avgseed,fill=Slope,color=Slope),data=Seeds_Slope)+geom_bar(stat="identity",position="dodge",color="black",show.legend=FALSE)+scale_fill_manual(values=cbbPalette)  + geom_errorbar(aes(ymax=avgseed+error, ymin=avgseed-error),position="dodge",color="black",width=0.9) + ylab("Avg Seed Pod Production")+xlab("Slope")+theme(panel.border=element_rect(color="black",size=1,fill=NA))
+
+PodProduction <-grid.arrange(SeedsGraph_Topo, arrangeGrob(SeedsGraph_Aspect,SeedsGraph_Slope, ncol=2), ncol=1, heights=c(1,1))
+
+seedsbysite<- ddply(fouryeardata, c("Topo","current.year"),summarise,
+      totalseeds = sum(totalseeds),
+      avgseeds = mean(totalseeds),
+      error = sd(totalseeds)/sqrt(length(totalseeds)))
+
+seedsbyyear<- ddply(yearlyseededonly, c("start.year","current.year"),summarise,
+      totalseeds = sum(totalseeds),
+      avgseeds = mean(totalseeds),
+      error = sd(totalseeds)/sqrt(length(totalseeds)),
+  total=length(totalseeds))
+
+```
+
+
+
+
+```{r rainfall vs seeding rate + production}
+germtoseedfit<- lm(proportionseeded~totalrain,data=germinated)
+summary(germtoseedfit)
+germtoseedfit<- lm(proportionseeded~decrain+janrain+febrain+marchrain+aprilrain+mayrain,data=germinated)
+
+
+chancetoseed <- ddply(germinated, c("totalrain"),summarise, 
+                    avgchancetoseed = mean(proportionseeded),
+                   error = sd(proportionseeded)/(sqrt(length(proportionseeded))))
+
+dfc <- ddply(germinated, c("totalrain","proportionseeded","current.year"),"nrow")
+
+dfc1 <-subset(dfc, proportionseeded!="NA")
+
+lm_rainseedrate <- function(germinated){
+    m <- lm(proportionseeded ~ totalrain, germinated);
+    eq <- substitute(italic(y) == a + b%.%italic(x)*","~~italic(R)^2~"="~r2, 
+         list(a = format(coef(m)[1], digits = 3), 
+              b = format(coef(m)[2], digits = 2), 
+             r2 = format(summary(m)$r.squared, digits = 3)))
+    as.character(as.expression(eq));
+    }
+
+ggplot(data=dfc1, aes(x=(proportionseeded), y=nrow, fill=current.year))+geom_line(aes(color=current.year)) +geom_point(aes(colour =current.year))+scale_color_manual(values = c("#56B4E9", "#999999", "#E69F00"))+ylim(0,72)+theme(panel.border=element_rect(color="black",size=1,fill=NA))+ylab("Number of Plots")+xlab("Percentage of Germinated L. nipomensis that Produced Seed")
+
+library(Hmisc)
+
+germseed_ecdf <- ddply(dfc1, c("current.year"), mutate,
+      ecdf = ecdf(proportionseeded)(unique(proportionseeded))*length(proportionseeded))
+
+#transforming the scale to (0,1)
+germseedr_ecdf_2 <- ddply(germseed_ecdf, "current.year", mutate, 
+      ecdf =scale(ecdf,center=min(ecdf),scale=diff(range(ecdf))),
+        ec = ecdf*100)
+
+germseedr_ecdf_2$current.year <- as.factor(germseedr_ecdf_2$current.year)
+class(germseedr_ecdf_2$current.year)
+
+
+conditionalcurve<-ggplot(germseedr_ecdf_2, aes(x=(1-ecdf)*100  ,y=proportionseeded, fill= as.factor(current.year), colour = as.factor(current.year))) +geom_line(aes(color=current.year))+geom_point(aes(color=current.year))+scale_color_manual(values = c("#56B4E9", "#999999", "#E69F00","#009E73"),guide=guide_legend(reverese=TRUE),name="Year Monitored")+theme(panel.border=element_rect(color="black",size=1,fill=NA))+ylab("Percentage of Germinated L. nipomensis that Produced Seed")+xlab("Probability")+guides(fill=guide_legend(title="Year Monitored"))
+
+subset(ddply(germinated, c("proportionseeded", "current.year"), summarise,
+      zero = length(proportionseeded>0)), current.year=="4")
+
+conditionaldata <- read.csv("C:/Users/bacon/Documents/CCBER/Nipomo Lupine/Datasheets/luni2018conditional.csv")
+
+conditionaldata$current.year <- as.factor(as.character(conditionaldata$current.year))
+
+
+probabilitycurve <- ggplot(conditionaldata, aes(x=percentage, y=numberofPlots, fill=current.year,color=current.year))+geom_line(aes(color=current.year))+geom_point(aes(color=current.year))+scale_color_manual(values = c("#56B4E9", "#999999", "#E69F00","#009E73"),guide=guide_legend(reverese=TRUE),name="Year Monitored")+theme(panel.border=element_rect(color="black",size=1,fill=NA))+ylab("Number of Plots with L. nipomensis Germinants")+xlab("Proporition of L. nipomensis Germinants that Seeded in Plot")+guides(fill=guide_legend(title="Year Monitored"))
+
+```
+
+```{r generational}
+previous <- subset(fouryeardata, previous=="yes")
+notprevious <-subset(fouryeardata, previous=="no")
+
+t.test(previous$totalseeds, notprevious$totalseeds) #*sig
+t.test(previous$percent, notprevious$percent)
+
+previousgraph <- ddply(fouryeardata,c("previous"),summarise,
+      avgseeds=mean(totalseeds),
+      avgpercent=mean(percent),
+      SEseeds = sd(totalseeds)/(sqrt(length(totalseeds))),
+      SEpercent = sd(percent)/sqrt(length(percent)))
+
+
+previous_germ <- ggplot(aes(x=previous,y=avgpercent,ymax=avgpercent+SEpercent,ymin=avgpercent-SEpercent,color=previous,fill=previous),data=previousgraph)+geom_bar(stat="identity",position="dodge",color="black", show.legend = FALSE)+ylab("Avg % Germination")+theme(panel.border=element_rect(color="black", size=1,fill=NA))+geom_errorbar(position=position_dodge(),color="black",width=0.9)+scale_fill_manual(values=cbbPalette)+xlab("Plots that L. nipomensis set seed a prior year")
+
+previous_seed <- ggplot(aes(x=previous,y=avgseeds,ymax=avgseeds+SEseeds,ymin=avgseeds-SEseeds,color=previous,fill=previous),data=previousgraph)+geom_bar(stat="identity",position="dodge",color="black", show.legend = FALSE)+ylab("Avg Seed Pod Production")+theme(panel.border=element_rect(color="black", size=1,fill=NA))+geom_errorbar(position=position_dodge(),color="black",width=0.9)+scale_fill_manual(values=cbbPalette)+xlab("Plots that L. nipomensis set seed a prior year")
+
+grid.arrange(previous_germ,previous_seed, ncol=2)
+
+```
+
+```{r}
+lm_rainseedrate <- function(germinated){
+    m <- lm(totalseeds ~ totalrain, germinated);
+    eq <- substitute(italic(y) == a + b%.%italic(x)*","~~italic(R)^2~"="~r2, 
+         list(a = format(coef(m)[1], digits = 3), 
+              b = format(coef(m)[2], digits = 2), 
+             r2 = format(summary(m)$r.squared, digits = 3)))
+    as.character(as.expression(eq));
+}
+
+
+summary(lm(totalrain~totalseeds, data = germinated))
+
+
+germinated$current.year <- as.factor(germinated$current.year)
+
+ggplot(aes(x=totalrain,y=totalseeds,fill=current.year),data=germinated)+geom_point(aes(colour =current.year))+xlab("Total Annual Rainfall")+ylab("Total Seed Pods per Plot")+theme(panel.border=element_rect(color="black",size=1,fill=NA))+guides(fill=guide_legend(title="Year Monitored"))+scale_color_manual(values = c("#56B4E9", "#999999", "#E69F00","#009E73"),guide=guide_legend(reverese=TRUE),name="Year Monitored")+geom_abline(intercept=-6.37, slope=0.09)+geom_text(x=20, y=190, label =lm_rainseedrate(germinated), parse = TRUE)
+```
+
+```{r}
+#to visualize correlations, you can use visual plots, Positive correlations are displayed in blue and negative correlations in red color. Color intensity and the size of the circle are proportional to the correlation coefficients.
+
+ 
+#https://cran.r-project.org/web/packages/corrplot/vignettes/corrplot-intro.html
+
+lunimatrix2018 <- read.csv("C:/Users/bacon/Documents/CCBER/Nipomo Lupine/Datasheets/2018envmatrix.csv")
+
+as.matrix(lunimatrix2018)
+luniweather2018 <- lunimatrix2018[,-1]
+rownames(luniweather2018) <- lunimatrix2018[,1] 
+
+
+library(corrplot)
+E<-cor(luniweather2018)
+
+
+#reorder
+corrplot(E, type="upper", order="hclust")
+
+
+#calculate p value of correlations
+cor.mtest <- function(luniweather2018) {
+  mat <- as.matrix(luniweather2018)
+  n <- ncol(luniweather2018)
+  p.mat<- matrix(NA, n, n)
+  diag(p.mat) <- 0
+    for (i in 1:(n - 1)) {
+       for (j in (i + 1):n) {
+          tmp <- cor.test(mat[, i], mat[, j])
+p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+}
+}
+colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+  p.mat }
+
+ 
+
+ # matrix of the p-value of the correlation
+
+p.mat <- cor.mtest(luniweather2018)
+
+head(p.mat[, 1:5])
+
+
+
+#leave blank on no significant coefficient
+corrplot(E, type="upper", order="hclust", p.mat = p.mat, sig.level = 0.05, insig = "blank")
+
+#PEARSONS Correlations
+cor(luniweather2018,use="everything",method=c("pearson"))
+
+#this doesn't give you significance values though.
+library(Hmisc)
+
+res2 <- rcorr(as.matrix(luniweather2018))
+
+# Extract the correlation coefficients
+Rvalues <- res2$r
+
+Rvalues <- as.data.frame((Rvalues))
+# Extract p-values
+pvalues <- res2$P
+
+pvalues <- as.data.frame((pvalues))
+library("PerformanceAnalytics")
+
+my_data<-luniweather2018
+
+chart.Correlation(luniweather2018,histogram=TRUE,psch=19)
+```
