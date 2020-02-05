@@ -1,0 +1,43 @@
+---
+title: '211'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+
+
+
+### read in yearly data
+
+nipomo2016 <- read_csv("CCBER/nipomolupine2016.csv")
+nipomo2016 <- nipomo20176!apply(is.na(nipomo2016) | nipomo2016 == "", 1, all),]
+nipomo2016$year <- "2016"
+
+
+nipomo2017 <- read_csv("CCBER/nipomolupine2017.csv")
+nipomo2017 <- nipomo2017[!apply(is.na(nipomo2017) | nipomo2017 == "", 1, all),] # remove blank rows
+nipomo2017$year <- "2017"
+
+
+nipomo2018 <- read_csv("CCBER/nipomolupine2018csv")
+nipomo2018 <- nipomo201[!apply(is.na(nipomo2018) | nipomo2018== "", 1, all),]
+nipomo2018$year <- "2018"
+
+
+nipomo2019 <- read_csv("CCBER/nipomolupine2019.csv")
+nipomo2019 <- nipomo2019[!apply(is.na(nipomo2019) | nipomo2019 == "", 1, all),]
+nipomo2019$year <- "2019"
+
+
+yearlydata <-read_csv("nipomo5years.csv")
+yearlydata$current.year <- as.factor(as.character(yearlydata$current.year))
+
+
+```
+
