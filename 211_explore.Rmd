@@ -136,6 +136,9 @@ seed_per_pod <- 2
 total_avg_seed <- mean(fecund$avg_pods) * seed_per_pod
 ### next steps, what variables best predict fecundity?
 
+
+# use geometric mean????
+
 ```
 
 
@@ -241,7 +244,7 @@ for (i in 1:length(trial)) {
 
 hist(trial)
 
-# mean and sd of seeds needed
+# mean and sd of seeds needed (is the mode more appropriate here?)
 mean(trial)
 sd(trial)
 ```
