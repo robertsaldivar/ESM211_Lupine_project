@@ -131,7 +131,9 @@ fecund <- all_data %>%
     avg_pods = mean(seedpods, na.rm = T),
     sd = sd(seedpods, na.rm = T)
   )
-total_avg <- mean(fecund$avg_pods)
+
+seed_per_pod <- 2
+total_avg_seed <- mean(fecund$avg_pods) * seed_per_pod
 ### next steps, what variables best predict fecundity?
 
 ```
@@ -171,7 +173,7 @@ sim_lupin <- function(planted) {
   
   return(res)
 }
-
+# example of 40 starting seeds
 sim_lupin(40)
 
 ```
@@ -207,7 +209,10 @@ ggplot(sim, aes(year, pop, group = as.factor(scenario), color = as.factor(scenar
 
 
 ```{r monte carlo}
-num_trials
+### this is for if we know the mean and sd for death, fecundity, and germination
+## if any of these are unknown, see the MonteCarlo simulation in ./MonteCarlo.Rmd
+
+num_trials <- 1000
 
 trial <- vector(length = num_trials)
 
@@ -255,6 +260,8 @@ tmp <- all_data %>%
 
 # do all rep 1,2,etc means the same thing?
 tmp <- filter(all_data, rep == 1)
+# no.
+
 ```
 
 

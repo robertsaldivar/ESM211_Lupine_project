@@ -1,0 +1,130 @@
+---
+title: "test"
+author: "Kyle Monper"
+date: "February 5, 2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(MonteCarlo)
+library(tidyverse)
+```
+
+
+
+
+### new simulation function with means and sds as input variable
+```{r new simulation function}
+sim_lupin <- function(planted, d_mean, d_sd, f_mean, f_sd, g_mean, g_sd) {
+  
+  N <- vector(length = 5)
+  b <- vector(length = 6)
+  b[1] <- planted
+  
+   ## need to figure out the proper distribution for these ( for each treatment type?)
+  d <- rnorm(5, d_mean, d_sd)
+  f <- rnorm(5, f_mean, f_sd)
+  g <- rnorm(5, g_mean, g_sd)
+  ## if less than 0 turn to 0
+  g[g<0] <- 0
+  f[f<0] <- 0
+  
+  for(year in 1:5) {
+    N[year] <- (b[year] - d[year])*g[year]
+    b[year + 1] <- (N[year] * f[year]) + (b[year] - N[year])
+  }
+  
+  res <- data.frame(year = seq(1,5), pop = N, bank = b[1:5])
+  res$scenario <- planted
+  
+  return(res)
+}
+```
+
+
+### function for calculating the min number of seeds to reach 5000 individuals based on the above
+```{r}
+
+calc_seeds <- function(planted, d_mean, d_sd, f_mean, f_sd, g_mean, g_sd) {
+    sim_list <- lapply(planted, sim_lupin, d_mean, d_sd, f_mean, f_sd, g_mean, g_sd)
+
+  sim <- bind_rows(sim_list)
+  
+  seeds_needed <- sim %>% 
+    filter(year == 5 & pop > 5000) %>% 
+    filter(scenario == min(scenario)) %>% ### do we want to select the min or average here?
+    select(scenario) %>% 
+    as.numeric()
+  
+  return(list("seeds_needed"=seeds_needed))
+  
+}
+  
+
+
+```
+
+
+
+```{r}
+
+calc_seeds <- function(d_mean, d_sd, f_mean, f_sd, g_mean, g_sd) {
+  
+  planted <- seq(5000, 10000, 100)
+  
+    sim_list <- lapply(planted, sim_lupin, d_mean = d_mean, d_sd = d_sd, f_mean = f_mean, f_sd = f_sd, g_mean = g_mean, g_sd = g_sd)
+
+  sim <- bind_rows(sim_list)
+  
+  seeds_needed <- sim %>% 
+    filter(year == 5 & pop > 5000) %>% 
+    filter(scenario == min(scenario)) %>% ### do we want to select the min or average here?
+    select(scenario) %>% 
+    as.numeric()
+  
+  return(list("seeds_needed"=seeds_needed))
+  
+}
+
+death_mean <- seq(.1, .3, .1)
+death_sd <- c(.01,.02)
+fec_mean <- seq(20,60, 10)  
+fec_sd <- seq(15, 45, 10)
+germ_mean <- seq(.05, .15, .05)
+germ_sd <- seq(.005, .015, .005)
+
+param_list=list("d_mean"=death_mean, "d_sd" = death_sd, "f_mean" = fec_mean, "f_sd" = fec_sd, "g_mean" = germ_mean, "g_sd" = germ_sd)
+
+
+```
+
+```{r run MC}
+### 100 reps takes ~ 25 mins
+# Sys.time()
+# MC_result<-MonteCarlo(func=calc_seeds, nrep=100, param_list=param_list, max_grid = 10000)
+# Sys.time()
+
+# write results to df & csv
+# results <- MakeFrame(MC_result)
+# write_csv(results, "mc_results.csv")
+
+```
+
+```{r}
+mc_res <- read_csv("mc_results.csv")
+
+ggplot(mc_res, aes(d_mean, seeds_needed, color = factor(g_mean))) +
+  geom_boxplot() +
+  facet_wrap(~f_mean)
+```
+
+
+
+
+
