@@ -55,9 +55,23 @@ yearlydata$current.year <- as.factor(as.character(yearlydata$current.year))
 bind_17_18 <- bind_rows(nipomo2017, nipomo2018)
 all_data <- bind_rows(bind_17_18, nipomo2019)
 all_data$year <- as.factor(all_data$year)
+
+
+
+
 ```
 
-### explore ###
+```{r clean}
+### need to clean attribute coding (e.g some years "no aspect" was recorded as "no.aspect")
+# see:
+unique(all_data$Slope) # steep and Steep
+unique(all_data$Topo)
+unique(all_data$Aspect) # South & south why 'small'?
+# maybe others
+```
+
+
+### explore 
 ```{r general trend}
 
 ### count the number of individuals over time
@@ -123,35 +137,25 @@ total_avg <- mean(fecund$avg_pods)
 ```
 
 
-### conceptual model
-```{r}
+### conceptual model 
+```{r function}
 
 
-# N_t == number of individuals in a given year 
-# g == germination rate
-#  g ~ 'environmental conditions' + ??
-#
-# b == # in seed bank
-#  b_t ~ ('b in preious year'  - 'seed death rate') + ('#indv in previous year' * 'fecundity')
-
-
-## state variables -- should be generated on a microhabitat/treatment basis
-# b0 <- # seeds planted
+## exogenous drivers -- should be generated on a microhabitat/treatment basis
 # d <-  # death rate of seeds (how can we figure this out!?!)
-# f <-  # fecundity need to find a way to model this so we can randomize based on some known mean and sd
-# g <-  # germination rate
+# f <-  # fecundity - note: need to find a way to model this so we can randomize based on some known mean and sd
+# g <-  # germination rate -- (same note^^^)
   
-
-
 
 sim_lupin <- function(planted) {
   
-  N <- vector(length = 6)
+  N <- vector(length = 5)
   b <- vector(length = 6)
   b[1] <- planted
+  
    ## need to figure out the proper distribution for these ( for each treatment type?)
   d <- rnorm(5, .2, .02)
-  f <- rnorm(5, 16, 4)
+  f <- rnorm(5, 20, 4)
   g <- rnorm(5, .05, .005)
   ## if less than 0 turn to 0
   g[g<0] <- 0
@@ -162,7 +166,7 @@ sim_lupin <- function(planted) {
     b[year + 1] <- (N[year] * f[year]) + (b[year] - N[year])
   }
   
-  res <- data.frame(year = seq(1,5), pop = N[1:5], bank = b[1:5])
+  res <- data.frame(year = seq(1,5), pop = N, bank = b[1:5])
   res$scenario <- planted
   
   return(res)
@@ -203,8 +207,9 @@ ggplot(sim, aes(year, pop, group = as.factor(scenario), color = as.factor(scenar
 
 
 ```{r monte carlo}
+num_trials
 
-trial <- vector(length = 200)
+trial <- vector(length = num_trials)
 
 planted <- seq(1000, 20000, 100)
 
@@ -221,12 +226,16 @@ for (i in 1:length(trial)) {
   
   trial[i] <- seeds_needed
   
+  # mark progress (for sanity's sake)
   if(i%%100 == 0) {
     print(paste(i/length(trial)))
   }
 
   
 }
+
+hist(trial)
+
 # mean and sd of seeds needed
 mean(trial)
 sd(trial)
@@ -234,7 +243,19 @@ sd(trial)
 
 
 
+scratch work
+```{r}
+test <- lm(germination ~ som + ph + ec, data = yearlydata)
+summary(test)
 
+
+## how to assign a unique ID based on multiple attributes (for assigning plot ID if we want)
+tmp <- all_data %>% 
+  mutate(plot_ID = group_indices(., Slope, rep, Topo, cage, Scarification)) ## dont think this is the right group combo
+
+# do all rep 1,2,etc means the same thing?
+tmp <- filter(all_data, rep == 1)
+```
 
 
 
