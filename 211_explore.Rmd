@@ -7,6 +7,17 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+To do list:
+
+data cleaning 
+- wrangle/ figure out whats going on with 2016 data
+- fix variable names (see "clean code chunk" ~line 75)
+
+Modeling:
+- model fecundity - get mean and sd based on environmental variables + treatment variables
+- model germination rate - get mean and sd based on environmental variables + treatment variables?
+- figure out how to deal w/ seed survival/death rate (monte carlo?)
+
 
 ```{r read data}
 library(tidyverse)
@@ -121,7 +132,7 @@ ggplot(yearlydata, aes(current.year, germination)) +
  # what proportion of germinated individuals survive and bear seeds
 ggplot(yearlydata, aes(current.year, proportionseeded)) +
   geom_boxplot() +
-  facet_wrap()
+  facet_wrap(~cage)
 
 # what is the fecundity?
 # yearly average 
@@ -160,7 +171,7 @@ sim_lupin <- function(planted) {
   
    ## need to figure out the proper distribution for these ( for each treatment type?)
   d <- rnorm(5, .2, .02)
-  f <- rnorm(5, 20, 4)
+  f <- rnorm(5, total_avg_seed, 4)
   g <- rnorm(5, .05, .005)
   ## if less than 0 turn to 0
   g[g<0] <- 0
@@ -215,7 +226,7 @@ ggplot(sim, aes(year, pop, group = as.factor(scenario), color = as.factor(scenar
 ### this is for if we know the mean and sd for death, fecundity, and germination
 ## if any of these are unknown, see the MonteCarlo simulation in ./MonteCarlo.Rmd
 
-num_trials <- 1000
+num_trials <- 100
 
 trial <- vector(length = num_trials)
 
@@ -247,12 +258,17 @@ hist(trial)
 # mean and sd of seeds needed (is the mode more appropriate here?)
 mean(trial)
 sd(trial)
+
+
+### once we get this mean, we can then frame the question in another way:
+## if we plant X# of seeds, what is the probability of getting to N=5000 by year 5
 ```
 
 
 
 scratch work
 ```{r}
+#linear model example for germination
 test <- lm(germination ~ som + ph + ec, data = yearlydata)
 summary(test)
 
