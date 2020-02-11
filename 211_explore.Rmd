@@ -34,7 +34,7 @@ metadata_idnv <- read_excel("data_scripts/BLEA_LUNI_metadata.xlsx", sheet = 2)
 #~ add explicit year
 
 ### 2016 data is wonky (different columns, and values w/in columns.. & has the multiple seeding starts)
-nipomo2016 <- read_csv("data_scripts\nipomo2016.csv")
+nipomo2016 <- read_csv("data_scripts/nipomo2016.csv")
 nipomo2016 <- nipomo2016[!apply(is.na(nipomo2016) | nipomo2016 == "", 1, all),]
 nipomo2016$year <- "2016"
 
