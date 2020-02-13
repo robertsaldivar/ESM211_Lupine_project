@@ -21,6 +21,7 @@ Modeling:
 
 ```{r read data}
 library(tidyverse)
+library(janitor)
 library(readxl)
 
 
@@ -34,25 +35,31 @@ metadata_idnv <- read_excel("data_scripts/BLEA_LUNI_metadata.xlsx", sheet = 2)
 #~ add explicit year
 
 ### 2016 data is wonky (different columns, and values w/in columns.. & has the multiple seeding starts)
-nipomo2016 <- read_csv("data_scripts/nipomo2016.csv")
+nipomo2016 <- read_csv("data_scripts/nipomo2016.csv") %>%
+  rename("seedpods" = "seeds") %>%
+  rename("scarification" = "scar") %>%
+  clean_names(case = c("snake"))
 nipomo2016 <- nipomo2016[!apply(is.na(nipomo2016) | nipomo2016 == "", 1, all),]
 nipomo2016$year <- "2016"
 
 
 nipomo2017 <- read_csv("data_scripts/nipomolupine2017.csv") %>% 
-  rename("seedpods" = "seeds")
+  rename("seedpods" = "seeds") %>%
+  clean_names(case = c("snake"))
 nipomo2017 <- nipomo2017[!apply(is.na(nipomo2017) | nipomo2017 == "", 1, all),] # remove blank rows
 nipomo2017$year <- "2017"
 
 
 
 nipomo2018 <- read_csv("data_scripts/nipomolupine2018.csv")  %>% 
-  rename("seedpods" = "seeds")
+  rename("seedpods" = "seeds") %>%
+  clean_names(case = c("snake"))
 nipomo2018 <- nipomo2018[!apply(is.na(nipomo2018) | nipomo2018== "", 1, all),]
 nipomo2018$year <- "2018"
 
 
-nipomo2019 <- read_csv("data_scripts/nipomolupine2019.csv")
+nipomo2019 <- read_csv("data_scripts/nipomolupine2019.csv") %>%
+  clean_names(case = c("snake"))
 nipomo2019 <- nipomo2019[!apply(is.na(nipomo2019) | nipomo2019 == "", 1, all),]
 nipomo2019$year <- "2019"
 
@@ -63,8 +70,9 @@ yearlydata$current.year <- as.factor(as.character(yearlydata$current.year))
 
 
 #### bind all together 
+bind_16_19 <- bind_rows(nipomo2016, nipomo2019)
 bind_17_18 <- bind_rows(nipomo2017, nipomo2018)
-all_data <- bind_rows(bind_17_18, nipomo2019)
+all_data <- bind_rows(bind_17_18, bind_16_19)
 all_data$year <- as.factor(all_data$year)
 
 
