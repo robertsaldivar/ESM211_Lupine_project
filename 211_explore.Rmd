@@ -75,13 +75,13 @@ bind_17_18 <- bind_rows(nipomo2017, nipomo2018)
 all_data <- bind_rows(bind_17_18, bind_16_19)
 all_data$year <- as.factor(all_data$year)
 
-
+#Due to the 2016 data being different it might be a good idea to clean up the data a little more but all of the seed pods are now together for each year.
 
 
 ```
 
 ```{r clean}
-### need to clean attribute coding (e.g some years "no aspect" was recorded as "no.aspect")
+### need to clean attribute coding (e.g some years "no aspect" was recorded as "no.aspect", some was years had aspect as s, vs south)
 # see:
 unique(all_data$Slope) # steep and Steep
 unique(all_data$Topo)
