@@ -1,17 +1,18 @@
 ---
-title: '211'
+title: '211 Lupine Project'
+author: "Kyle Monper"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, warning = F, message = F)
 ```
 
 To do list:
 
 data cleaning 
 - wrangle/ figure out whats going on with 2016 data
-- fix variable names (see "clean code chunk" ~line 75)
+- fix variable names to make them the same (see "clean code chunk" ~line 75)
 
 Modeling:
 - model fecundity - get mean and sd based on environmental variables + treatment variables
@@ -19,7 +20,7 @@ Modeling:
 - figure out how to deal w/ seed survival/death rate (monte carlo?)
 
 
-```{r read data}
+```{r read data, echo = F}
 library(tidyverse)
 library(readxl)
 
@@ -72,7 +73,7 @@ all_data$year <- as.factor(all_data$year)
 
 ```
 
-```{r clean}
+```{r clean, echo = F}
 ### need to clean attribute coding (e.g some years "no aspect" was recorded as "no.aspect")
 # see:
 unique(all_data$Slope) # steep and Steep
@@ -82,7 +83,7 @@ unique(all_data$Aspect) # South & south why 'small'?
 ```
 
 
-### explore 
+# explore 
 ```{r general trend}
 
 ### count the number of individuals over time
