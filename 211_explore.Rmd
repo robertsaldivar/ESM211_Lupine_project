@@ -67,6 +67,7 @@ nipomo2019$year <- "2019"
 
 yearlydata <-read_csv("data_scripts/nipomo5years.csv")
 yearlydata$current.year <- as.factor(as.character(yearlydata$current.year))
+yearlydata$cage <- tolower(yearlydata$cage)
 
 
 
@@ -81,13 +82,9 @@ all_data$year <- as.factor(all_data$year)
 
 ```
 
-<<<<<<< HEAD
-```{r clean, echo = F}
-### need to clean attribute coding (e.g some years "no aspect" was recorded as "no.aspect")
-=======
+
 ```{r clean}
 ### need to clean attribute coding (e.g some years "no aspect" was recorded as "no.aspect", some was years had aspect as s, vs south)
->>>>>>> 03024c801ac78fd2be85e82919d29fc7e1a9a252
 # see:
 unique(all_data$Slope) # steep and Steep
 unique(all_data$Topo)
