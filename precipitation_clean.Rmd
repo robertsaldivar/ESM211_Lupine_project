@@ -31,6 +31,24 @@ precipitation_clean <- precipitation %>%
 ```
 
 ```{r}
+#for using lubridate
+precip_date <- precipitation_clean %>%
+  mutate(yr_mo_day = lubridate::parse_date_time(date, "ymd")) %>%
+  mutate(month = month(yr_mo_day)) %>%
+  mutate(year = year(yr_mo_day)) %>%
+  mutate(day = day(yr_mo_day)) %>%
+  select(station, precip, month, year, day) %>%
+  drop_na()
+```
+
+
+```{r}
 #This code chuck is going to summarize the precipitation data so that 
+
+precip_monthly <- precip_date %>%
+  group_by(month, year) %>%
+  summarize(
+    precip_mean = mean(precip)
+  )
 ```
 

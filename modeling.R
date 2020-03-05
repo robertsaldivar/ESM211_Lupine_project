@@ -21,6 +21,9 @@ test
 ## 2) to build the germination model: (note: use binomical dist)
 #~~~ a) need to recalculate the "seedbank" variable w/in the dataframe
 #~~~~~~ this will be based on some fixed assummed death rate of seeds (search literature to try and justify is this % or just use some arbitrary value like 20%)
+
+#~~~~~~~based on Maron and Simmms 1997 we can assume the seed death rate is about 17%.
+
 #~~~ b) based on this new seedbank variable, convert germination into a percent germination (this is so we can run this as a binomial regression)
 #~~~ c) once we have that "new_bank" and "germ_percent" variables, we can build a bionomial regression, ie:
 #~~~~~~ germination_percent ~ new_bank + janrain + febrain ..... 
