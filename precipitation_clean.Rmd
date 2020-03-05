@@ -1,0 +1,36 @@
+---
+title: "Precipitation_Wrangling"
+author: "Robert Saldivar"
+date: "March 4, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#Loading the tidyverse, lubridate and the data
+
+library(tidyverse)
+library(lubridate)
+library(here)
+library(janitor)
+
+precipitation <- read_csv("preciptiation_data_lupine.csv")
+
+```
+
+```{r}
+# THis is going to clean the data so that the prcipitation data can eventually be grouped by month and year
+
+precipitation_clean <- precipitation %>%
+  clean_names()
+
+
+```
+
+```{r}
+#This code chuck is going to summarize the precipitation data so that 
+```
+
