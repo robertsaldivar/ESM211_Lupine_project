@@ -50,5 +50,7 @@ precip_monthly <- precip_date %>%
   summarize(
     precip_mean = mean(precip)
   )
+
+#precipitation is in inches
 ```
 
