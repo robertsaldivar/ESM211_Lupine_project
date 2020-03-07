@@ -1,0 +1,300 @@
+---
+title: "Lupin Project Detailed Work Plan"
+author: "Kyle Monper, Jamie Miller, Robert Saldivar"
+date: "February 18, 2020"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = F, message = F)
+```
+
+## Description of data
+	This project will use data collected by Cheadle Center for Biodiversity & Ecological Restoration (CCBER) from a planting experiment on the Nipomo Mesa Lupine (Lupinus nipomensis) in the Black Lake Ecological Area in south San Luis Obispo County. Within this study 40 seeds were planted in 72 plots that differed in regards to slope, aspect, herbivory, caging treatment, and germination technique. Data were collected every 2 weeks during the growing period, from germination until plant death, and included observations on plant growth and number of seed pods. The plants treatment of slope, aspect, scarification and caging were also recorded.
+
+
+## Models already applied to data
+	Statistical testing was done in R statistical software (Version 3.40). The previous researchers have already done some preliminary analysis using an ANOVA to determine if there was an interaction between aspect, slope and herbivory on plant reproduction, as well as a Tukey’s honest significant test. There was a Student’s T Test to determine if scarification impacted germination.  
+  Below is a visualization of similar trends, along with a concpetual population growth model and approach for developing our recomendation to restoration managers.
+
+
+
+```{r read data, echo = F}
+library(tidyverse)
+library(janitor)
+library(readxl)
+
+
+# read in metadate for easy reference
+metadata_plot <- read_excel("data_scripts/BLEA_LUNI_metadata.xlsx", sheet = 1)
+metadata_idnv <- read_excel("data_scripts/BLEA_LUNI_metadata.xlsx", sheet = 2)
+
+
+### read in yearly data 
+#~ remove blank rows 
+#~ add explicit year
+
+### 2016 data is wonky (different columns, and values w/in columns.. & has the multiple seeding starts)
+nipomo2016 <- read_csv("data_scripts/nipomo2016.csv") %>%
+  rename("seedpods" = "seeds") %>%
+  rename("scarification" = "scar") %>%
+  clean_names(case = c("snake"))
+nipomo2016 <- nipomo2016[!apply(is.na(nipomo2016) | nipomo2016 == "", 1, all),]
+nipomo2016$year <- "2016"
+
+
+nipomo2017 <- read_csv("data_scripts/nipomolupine2017.csv") %>% 
+  rename("seedpods" = "seeds") %>%
+  clean_names(case = c("snake"))
+nipomo2017 <- nipomo2017[!apply(is.na(nipomo2017) | nipomo2017 == "", 1, all),] # remove blank rows
+nipomo2017$year <- "2017"
+
+
+
+nipomo2018 <- read_csv("data_scripts/nipomolupine2018.csv")  %>% 
+  rename("seedpods" = "seeds") %>%
+  clean_names(case = c("snake"))
+nipomo2018 <- nipomo2018[!apply(is.na(nipomo2018) | nipomo2018== "", 1, all),]
+nipomo2018$year <- "2018"
+
+
+nipomo2019 <- read_csv("data_scripts/nipomolupine2019.csv") %>%
+  clean_names(case = c("snake"))
+nipomo2019 <- nipomo2019[!apply(is.na(nipomo2019) | nipomo2019 == "", 1, all),]
+nipomo2019$year <- "2019"
+
+
+yearlydata <-read_csv("data_scripts/nipomo5years.csv")
+yearlydata$current.year <- as.factor(as.character(yearlydata$current.year))
+
+
+
+#### bind all together 
+bind_16_19 <- bind_rows(nipomo2016, nipomo2019)
+bind_17_18 <- bind_rows(nipomo2017, nipomo2018)
+all_data <- bind_rows(bind_17_18, bind_16_19)
+all_data$year <- as.factor(all_data$year)
+
+#Due to the 2016 data being different it might be a good idea to clean up the data a little more but all of the seed pods are now together for each year.
+
+
+```
+
+```{r clean, include = F}
+### need to clean attribute coding (e.g some years "no aspect" was recorded as "no.aspect")
+# see:
+unique(all_data$Slope) # steep and Steep
+unique(all_data$Topo)
+unique(all_data$Aspect) # South & south why 'small'?
+# maybe others
+```
+
+
+# explore 
+```{r general trend}
+
+### count the number of individuals over time
+pop_trend <- all_data %>% 
+  group_by(year) %>% 
+  summarise(
+    count = length(unique(id))
+  )
+
+plot(pop_trend, main = "indviduals over time")
+
+
+```
+  
+### germination trends  
+
+```{r germination}
+### number of germinates over time
+ggplot(yearlydata, aes(current.year, germination)) +
+  geom_boxplot() + 
+  labs(
+    title = "# germinants per year across all plots"
+  )
+
+### germ ~ bank
+ggplot(yearlydata, aes(bank, germination)) +
+  geom_smooth(method = "lm") +
+  geom_point(aes(color = current.year)) +
+  labs(title = "germination as function of seedbank")
+
+#### germ ~ slop/aspect + cage
+
+ggplot(yearlydata, aes(current.year, germination)) +
+  geom_boxplot(aes(color = cage)) +
+  facet_wrap(~Slope) + 
+  labs(
+    title = "# germinants per year across plot, by slope"
+  )
+
+ggplot(yearlydata, aes(current.year, germination)) +
+  geom_boxplot(aes(color = cage)) +
+  facet_wrap(~Aspect) + 
+  labs(
+    title = "# germinants per year across plot, by aspect"
+  )
+```
+
+
+### what proportion of germinated individuals survive and bear seeds -- by caging treatment
+```{r other traits, echo = T}
+
+ggplot(yearlydata, aes(current.year, proportionseeded)) +
+  geom_boxplot() +
+  facet_wrap(~cage)
+
+# what is the fecundity?
+# yearly average 
+fecund <- all_data %>% 
+  group_by(year) %>% 
+  summarise(
+    avg_pods = mean(seedpods, na.rm = T),
+    sd = sd(seedpods, na.rm = T)
+  )
+
+seed_per_pod <- 2 # this is the conservative assumption of number of seeds per pod from the original reserach
+total_avg_seed <- mean(fecund$avg_pods) * seed_per_pod
+### next steps, what variables best predict fecundity?
+
+
+# use geometric mean????
+
+```
+
+
+# conceptual model 
+Below is a conceptual outline that we plan to use as the basis for our population growth model. The basic SEG model was used as a framework for our approach. In our model we expect that
+1) the death rate of seeds
+2) fecundity of plants (# of seeds produced)
+3) germination rate of seeds within the seed bank  
+To all vary from year to year and therefor have been randomized within our growth model. Our goal is to use a linear regression to find the proper mean/ probablility distributions for each of these values.   
+In the case that we cannot determin one or more of these values we will use the MonteCarlo:: package to simulate how variations in the mean and standard deviation of that value might effect our results. For example we expect that we may not be able to determin `d` (the death rate of seeds within the seed bank), which means `g` (the germination rate) will also be tricky -- in this case we plan to combine `d` and `g` into a single germination rate and run a sensitivity analyis via monte carlo simulation.
+```{r function, echo = T}
+
+
+## exogenous drivers -- should be generated on a microhabitat/treatment basis
+# d <-  # death rate of seeds (how can we figure this out!?!)
+# f <-  # fecundity - note: need to find a way to model this so we can randomize based on some known mean and sd
+# g <-  # germination rate -- (same note^^^)
+  
+
+sim_lupin <- function(planted) {
+  
+  N <- vector(length = 5)
+  b <- vector(length = 6)
+  b[1] <- planted
+  
+   ## need to figure out the proper distribution for these ( for each treatment type?)
+  d <- rnorm(5, .2, .02)
+  f <- rnorm(5, total_avg_seed, 4)
+  g <- rnorm(5, .05, .005)
+  ## if less than 0 turn to 0
+  g[g<0] <- 0
+  f[f<0] <- 0
+  
+  for(year in 1:5) {
+    N[year] <- (b[year] - d[year])*g[year]
+    b[year + 1] <- (N[year] * f[year]) + (b[year] - N[year])
+  }
+  
+  res <- data.frame(year = seq(1,5), pop = N, bank = b[1:5])
+  res$scenario <- planted
+  
+  return(res)
+}
+# example of 40 starting seeds
+sim_lupin(40)
+
+```
+This result simulates how a population might perform if 40 seeds are planted, based on the given (currently arbitrary) `d`,`f`, and `g` values. Next, to see how many seeds have to be planted to reach our goal of 5000 individuals by year 5, we can run multiple starting scenarios of seeds planted through this function, and find the minimum number of seeds planted that are required to reach our goal:  
+
+```{r simulate, echo = T}
+### how to choose necessary planting
+
+planted <- seq(100, 10000, 100)
+
+sim_list <- lapply(planted, sim_lupin)
+
+sim <- bind_rows(sim_list)
+seeds_needed <- sim %>% 
+  filter(year == 5 & pop > 5000) %>% 
+  filter(scenario == min(scenario)) %>% ### do we want to select the min or average here?
+  select(scenario) %>% 
+  as.numeric()
+
+
+
+# plot the trend
+ggplot(sim, aes(year, pop, group = as.factor(scenario), color = as.factor(scenario))) +
+  geom_line() +
+  geom_hline(yintercept = 5000, linetype = "dashed", size = 1) +
+  theme(legend.position = "none")
+
+
+```
+This figure shows the simulated population growth trends for each of the 100 starting number of seed scenario. The dashed line shows which scenarios reached the 5000 individuals threshold. We can then easily select the lowest starting seed scenario that reached our goal.   
+  
+  
+However, because this was randomized we want to run this same analysis multiple times to see how stochasticisty may affect our results -- as shown below:
+
+
+```{r monte carlo, echo = T}
+### !!!! NOTE: this is for if we know the mean and sd for death, fecundity, and germination
+## if any of these are unknown, we will need to simulate how variation in that unknown value may affect results. See the MonteCarlo simulation in ./MonteCarlo.Rmd
+
+num_trials <- 100 ## we will obviously do more trials
+
+trial <- vector(length = num_trials)
+
+planted <- seq(1000, 20000, 100)
+
+for (i in 1:length(trial)) {
+  sim_list <- lapply(planted, sim_lupin)
+
+  sim <- bind_rows(sim_list)
+  
+  seeds_needed <- sim %>% 
+    filter(year == 5 & pop > 5000) %>% 
+    filter(scenario == min(scenario)) %>% ### do we want to select the min or average here?
+    select(scenario) %>% 
+    as.numeric()
+  
+  trial[i] <- seeds_needed
+  
+  # mark progress (for sanity's sake)
+  # if(i%%100 == 0) {
+  #   print(paste(i/length(trial)))
+  # }
+
+  
+}
+
+hist(trial)
+
+# mean and sd of seeds needed (is the mode more appropriate here?)
+print("mean number of seeds needed:")
+mean(trial)
+print("standard deviation")
+sd(trial)
+
+
+### once we get this mean, we can then frame the question in another way:
+## if we plant X# of seeds, what is the probability of getting to N=5000 by year 5
+```
+
+
+
+Based on this we could then say something along the lines of if you plant X number of seeds there is a Y% chance of reaching the target of 5000. 
+ 
+#### Other considerations
+We will likely want to do this for specific treatment combinations (i.e small caged with scarifcation v.s small caged no scarification vs no cage no scarification etc... and use the results from each to make a recomendation as to what treatments we want to recomend restoration manager use when doing this planting.) We have yet to determine if we would include slope and aspect within within each of these treatment combinations -- it seems like it would be best if slope and aspect were used as variables within our linear models, because it is not very pragmatic that we would recomend that seeds only be planted in specific slope/aspect conditions.  
+  
+### Next steps:
+* find the best mixture of variables to fit our observed germination and fecundity rates and incorperate them into our conceptual model.

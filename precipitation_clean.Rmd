@@ -47,10 +47,31 @@ precip_date <- precipitation_clean %>%
 
 precip_monthly <- precip_date %>%
   group_by(month, year) %>%
-  summarize(
-    precip_mean = mean(precip)
-  )
+  summarize(precip_mean = sum(precip)) %>% 
+  ungroup() %>% 
+  mutate(precip_mm = precip_mean * 25.4)
+  
+
+water_year <- precip_monthly %>% 
+  mutate(wym = if_else(month > 9, month - 9, month + 3)) %>% 
+  select(-month, -precip_mean)
+
+precip_long <- water_year %>% 
+  spread(wym, precip_mm) %>% 
+  select(year, decrain = 3, janrain = 4, febrain = 5, marchrain = 6, aprilrain = 7, mayrain = 8) %>% 
+  filter(!is.na(aprilrain))
+
+write_csv(precip_long, "water_year.csv")
 
 #precipitation is in inches
 ```
+
+
+
+
+
+
+
+
+
 

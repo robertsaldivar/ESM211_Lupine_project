@@ -1,12 +1,13 @@
-germ_model <- glm(germination ~ janrain + febrain + marchrain + aprilrain + mayrain + bank, data = yearlydata)
+germ_model <- glm(germination ~ totalrain + bank + som + ph, data = yearlydata)
 summary(germ_model)
 
-fecund_model <- glm(seedpods ~  janrain + febrain + marchrain + aprilrain + mayrain + cage, data = all_data, family = poisson) 
+fecund_model <- glm(seedpods ~ decrain + janrain + febrain + marchrain + aprilrain + mayrain + cage, data = all_data, family = poisson) 
 summary(fecund_model)
 
-fecund_df <- data.frame(janrain = 300, febrain = 200, marchrain = 650, aprilrain = 100, mayrain = 200, cage = "Big")
+test <- precip[8,]
+test$cage <- "big"
 
-test <- predict(fecund_model, fecund_df)
+test <- predict(fecund_model, test, type = "response")
 test
 
 

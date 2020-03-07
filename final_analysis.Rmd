@@ -1,175 +1,28 @@
 ---
-title: '211 Lupine Project'
+title: "final_analysis"
 author: "Kyle Monper"
-output: html_document
+date: "March 6, 2020"
+output:
+  word_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = F, message = F)
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F, echo = F)
 ```
 
-To do list:
 
-data cleaning 
-- wrangle/ figure out whats going on with 2016 data
-- fix variable names to make them the same (see "clean code chunk" ~line 75)
-
-Modeling:
-- model fecundity - get mean and sd based on environmental variables + treatment variables
-- model germination rate - get mean and sd based on environmental variables + treatment variables?
-- figure out how to deal w/ seed survival/death rate (monte carlo?)
-
-
-```{r read data, echo = F}
+```{r}
 library(tidyverse)
-library(janitor)
-library(readxl)
 
-
-# read in metadate for easy reference
-metadata_plot <- read_excel("data_scripts/BLEA_LUNI_metadata.xlsx", sheet = 1)
-metadata_idnv <- read_excel("data_scripts/BLEA_LUNI_metadata.xlsx", sheet = 2)
-
-
-### read in yearly data 
-#~ remove blank rows 
-#~ add explicit year
-
-### 2016 data is wonky (different columns, and values w/in columns.. & has the multiple seeding starts)
-nipomo2016 <- read_csv("data_scripts/nipomo2016.csv") %>%
-  rename("seedpods" = "seeds") %>%
-  rename("scarification" = "scar") %>%
-  clean_names(case = c("snake"))
-nipomo2016 <- nipomo2016[!apply(is.na(nipomo2016) | nipomo2016 == "", 1, all),]
-nipomo2016$year <- "2016"
-
-
-nipomo2017 <- read_csv("data_scripts/nipomolupine2017.csv") %>% 
-  rename("seedpods" = "seeds") %>%
-  clean_names(case = c("snake"))
-nipomo2017 <- nipomo2017[!apply(is.na(nipomo2017) | nipomo2017 == "", 1, all),] # remove blank rows
-nipomo2017$year <- "2017"
-
-
-
-nipomo2018 <- read_csv("data_scripts/nipomolupine2018.csv")  %>% 
-  rename("seedpods" = "seeds") %>%
-  clean_names(case = c("snake"))
-nipomo2018 <- nipomo2018[!apply(is.na(nipomo2018) | nipomo2018== "", 1, all),]
-nipomo2018$year <- "2018"
-
-
-nipomo2019 <- read_csv("data_scripts/nipomolupine2019.csv") %>%
-  clean_names(case = c("snake"))
-nipomo2019 <- nipomo2019[!apply(is.na(nipomo2019) | nipomo2019 == "", 1, all),]
-nipomo2019$year <- "2019"
-
-
-yearlydata <-read_csv("data_scripts/nipomo5years.csv")
-yearlydata$current.year <- as.factor(as.character(yearlydata$current.year))
-yearlydata$cage <- tolower(yearlydata$cage)
-
-write_csv(yearlydata, "yearlydata.csv")
-
-#### bind all together 
-bind_16_19 <- bind_rows(nipomo2016, nipomo2019)
-bind_17_18 <- bind_rows(nipomo2017, nipomo2018)
-all_data <- bind_rows(bind_17_18, bind_16_19)
-all_data$year <- as.factor(all_data$year)
-
-write_csv(all_data,"all_data.csv")
-
-#Due to the 2016 data being different it might be a good idea to clean up the data a little more but all of the seed pods are now together for each year.
-
-### read in cleaned precip data
+yearlydata <- read_csv("yearlydata.csv")
+all_data <- read_csv("all_data.csv")
 precip <- read_csv("water_year.csv") %>% 
   select(-year)
-
 ```
 
 
-```{r clean}
-### need to clean attribute coding (e.g some years "no aspect" was recorded as "no.aspect", some was years had aspect as s, vs south)
-# see:
-unique(all_data$Slope) # steep and Steep
-unique(all_data$Topo)
-unique(all_data$Aspect) # South & south why 'small'?
-# maybe others
-```
-
-
-# explore 
-```{r general trend}
-
-### count the number of individuals over time
-pop_trend <- all_data %>% 
-  group_by(year) %>% 
-  summarise(
-    count = length(unique(id))
-  )
-
-plot(pop_trend, main = "indviduals over time")
-
-
-```
-
-```{r germination}
-### number of germinates over time
-ggplot(yearlydata, aes(current.year, germination)) +
-  geom_boxplot() + 
-  labs(
-    title = "# germinants per year across all plots"
-  )
-
-### germ ~ bank
-ggplot(yearlydata, aes(bank, germination)) +
-  geom_smooth(method = "lm") +
-  geom_point(aes(color = current.year)) +
-  labs(title = "germination as function of seedbank")
-
-#### germ ~ slop/aspect + cage
-
-ggplot(yearlydata, aes(current.year, germination)) +
-  geom_boxplot(aes(color = cage)) +
-  facet_wrap(~Slope) + 
-  labs(
-    title = "# germinants per year across plot, by slope"
-  )
-
-ggplot(yearlydata, aes(current.year, germination)) +
-  geom_boxplot(aes(color = cage)) +
-  facet_wrap(~Aspect) + 
-  labs(
-    title = "# germinants per year across plot, by aspect"
-  )
-```
-
-```{r other traits}
- # what proportion of germinated individuals survive and bear seeds
-ggplot(yearlydata, aes(current.year, proportionseeded)) +
-  geom_boxplot() +
-  facet_wrap(~cage)
-
-# what is the fecundity?
-# yearly average 
-fecund <- all_data %>% 
-  group_by(year) %>% 
-  summarise(
-    avg_pods = mean(seedpods, na.rm = T),
-    sd = sd(seedpods, na.rm = T)
-  )
-
-seed_per_pod <- 2
-total_avg_seed <- mean(fecund$avg_pods) * seed_per_pod
-### next steps, what variables best predict fecundity?
-
-
-# use geometric mean????
-
-```
-
-
-### conceptual model 
+### model
 ```{r function}
 
 
@@ -181,7 +34,9 @@ total_avg_seed <- mean(fecund$avg_pods) * seed_per_pod
 fecund_model <- glm(seedpods ~ decrain + janrain + febrain + marchrain + aprilrain + mayrain + cage, data = all_data, family = poisson) 
 summary(fecund_model)
 
-germ_model <- glm(cbind(germination, bank - germination) ~ decrain + janrain, data = germ_pct, family=binomial())
+
+#!!!!!!! NOTE: still need to update this based on new bank data
+germ_model <- glm(cbind(germination, bank - germination) ~ decrain + janrain, data = yearlydata, family=binomial())
 summary(germ_model)
 
 sim_lupin <- function(planted, cage_type) {
@@ -225,10 +80,12 @@ test
 
 ```
 
+
+# single run - big cage
 ```{r simulate}
 ### how to choose necessary planting
 
-planted <- seq(1000, 10000, 100)
+planted <- seq(1000, 6000, 100)
 
 sim_list <- lapply(planted, sim_lupin, "Big")
 
@@ -254,12 +111,12 @@ ggplot(sim, aes(year, pop, group = as.factor(scenario), color = as.factor(scenar
 ```
 
 
-
+# montecarlo run big cage
 ```{r monte carlo}
 ### this is for if we know the mean and sd for death, fecundity, and germination
 ## if any of these are unknown, see the MonteCarlo simulation in ./MonteCarlo.Rmd
 
-num_trials <- 100
+num_trials <- 1000
 
 trial <- vector(length = num_trials)
 
@@ -299,16 +156,17 @@ sd(trial)
 
 
 
-
-```{r monte carlo}
+# montecarlo run small cage
+```{r monte carlo small}
 ### this is for if we know the mean and sd for death, fecundity, and germination
 ## if any of these are unknown, see the MonteCarlo simulation in ./MonteCarlo.Rmd
 
-num_trials <- 100
+suppressWarnings({ 
+  num_trials <- 1000
 
 trial <- vector(length = num_trials)
 
-planted <- seq(1000, 6000, 100)
+planted <- seq(5000, 20000, 100)
 
 for (i in 1:length(trial)) {
   sim_list <- lapply(planted, sim_lupin, "small")
@@ -329,7 +187,8 @@ for (i in 1:length(trial)) {
   }
 
   
-}
+}})
+
 
 hist(trial, main = "small cage treatment")
 
@@ -342,8 +201,8 @@ sd(trial)
 ## if we plant X# of seeds, what is the probability of getting to N=5000 by year 5
 ```
 
-
-```{r monte carlo}
+# montecarlo run big cage
+```{r monte carlo no}
 ### this is for if we know the mean and sd for death, fecundity, and germination
 ## if any of these are unknown, see the MonteCarlo simulation in ./MonteCarlo.Rmd
 
@@ -351,9 +210,10 @@ num_trials <- 100
 
 trial <- vector(length = num_trials)
 
-planted <- seq(1000, 6000, 100)
+planted <- seq(100000, 300000, 20000)
 
-for (i in 1:length(trial)) {
+suppressWarnings({ 
+  for (i in 1:length(trial)) {
   sim_list <- lapply(planted, sim_lupin, "none")
 
   sim <- bind_rows(sim_list)
@@ -372,7 +232,8 @@ for (i in 1:length(trial)) {
   }
 
   
-}
+}})
+
 
 hist(trial, main = "no cage treatment")
 
@@ -384,16 +245,4 @@ sd(trial)
 ### once we get this mean, we can then frame the question in another way:
 ## if we plant X# of seeds, what is the probability of getting to N=5000 by year 5
 ```
-
-
-
-
-
-
-
-
-
-
-
-
 
