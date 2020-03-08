@@ -159,7 +159,7 @@ for (i in 1:length(trial)) {
   
 }
 
-hist(trial, main = "big cage treatment")
+#hist(trial, main = "big cage treatment")
 
 # mean and sd of seeds needed (is the mode more appropriate here?)
 mean(trial)
@@ -217,7 +217,7 @@ sd(trial)
 ## if we plant X# of seeds, what is the probability of getting to N=5000 by year 5
 ```
 
-# montecarlo run big cage
+# montecarlo run no cage
 ```{r monte carlo no}
 ### this is for if we know the mean and sd for death, fecundity, and germination
 ## if any of these are unknown, see the MonteCarlo simulation in ./MonteCarlo.Rmd
