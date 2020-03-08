@@ -3,8 +3,8 @@ title: "final_analysis"
 author: "Kyle Monper"
 date: "March 6, 2020"
 output:
-  word_document: default
   html_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -79,6 +79,16 @@ test <- sim_lupin(1000, "Big")
 test
 
 ```
+
+```{r stargazer table}
+# Stargazer table of germination glm
+library(stargazer)
+
+germ_table <- stargazer(germ_model)
+germ_table
+
+```
+
 
 
 # single run - big cage
