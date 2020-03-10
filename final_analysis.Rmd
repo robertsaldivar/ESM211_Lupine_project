@@ -3,12 +3,12 @@ title: "final_analysis"
 author: "Kyle Monper"
 date: "March 6, 2020"
 output:
-  html_document: default
   word_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = F, message = F, echo = F)
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F, echo = T)
 ```
 
 
