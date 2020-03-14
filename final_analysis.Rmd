@@ -8,7 +8,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = F, message = F, echo = F)
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F, echo = T)
 ```
 
 
@@ -16,7 +16,8 @@ knitr::opts_chunk$set(echo = TRUE, warning = F, message = F, echo = F)
 library(tidyverse)
 
 yearlydata <- read_csv("yearlydata.csv")
-all_data <- read_csv("all_data.csv")
+all_data <- read_csv("all_data.csv") #%>% # In original csv, search and replaced cage column "Small" with "small" and "Big" with "big"
+  #filter(janrain != "NA")
 precip <- read_csv("water_year.csv") %>% 
   select(-year)
 ```
@@ -75,10 +76,25 @@ sim_lupin <- function(planted, cage_type) {
   
 }
 
-test <- sim_lupin(1000, "Big")
+test <- sim_lupin(1000, "big")
 test
 
 ```
+
+```{r stargazer tables, results = 'asis', echo = FALSE}
+# Stargazer table of germination glm
+library(stargazer)
+
+model_table <- stargazer(germ_model, fecund_model,
+                        type = "html",
+                        single.row = TRUE,
+                        dep.var.labels = c("Germination","Fecundity"),
+                        covariate.labels = c("Dec Rain","Jan Rain","Feb Rain","Mar Rain","Apr Rain","May Rain","Big Cage","No Cage","Small Cage")
+                        )
+model_table
+
+```
+
 
 
 # single run - big cage
@@ -87,7 +103,7 @@ test
 
 planted <- seq(1000, 6000, 100)
 
-sim_list <- lapply(planted, sim_lupin, "Big")
+sim_list <- lapply(planted, sim_lupin, "big")
 
 sim <- bind_rows(sim_list)
 seeds_needed <- sim %>% 
@@ -121,9 +137,15 @@ num_trials <- 1000
 trial <- vector(length = num_trials)
 
 planted <- seq(1000, 6000, 100)
+<<<<<<< HEAD
 suppressWarnings({
   for (i in 1:length(trial)) {
   sim_list <- lapply(planted, sim_lupin, "Big")
+=======
+
+for (i in 1:length(trial)) {
+  sim_list <- lapply(planted, sim_lupin, "big")
+>>>>>>> f6892d4e9f2eb4765c48bb1207914a302a3c8a19
 
   sim <- bind_rows(sim_list)
   
@@ -146,7 +168,7 @@ suppressWarnings({
 })
 
 
-hist(trial, main = "big cage treatment")
+#hist(trial, main = "big cage treatment")
 
 # mean and sd of seeds needed (is the mode more appropriate here?)
 mean(trial)
@@ -204,7 +226,7 @@ sd(trial, na.rm = T)
 ## if we plant X# of seeds, what is the probability of getting to N=5000 by year 5
 ```
 
-# montecarlo run big cage
+# montecarlo run no cage
 ```{r monte carlo no}
 ### this is for if we know the mean and sd for death, fecundity, and germination
 ## if any of these are unknown, see the MonteCarlo simulation in ./MonteCarlo.Rmd
