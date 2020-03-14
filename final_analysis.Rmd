@@ -121,8 +121,8 @@ num_trials <- 1000
 trial <- vector(length = num_trials)
 
 planted <- seq(1000, 6000, 100)
-
-for (i in 1:length(trial)) {
+suppressWarnings({
+  for (i in 1:length(trial)) {
   sim_list <- lapply(planted, sim_lupin, "Big")
 
   sim <- bind_rows(sim_list)
@@ -142,6 +142,9 @@ for (i in 1:length(trial)) {
 
   
 }
+  
+})
+
 
 hist(trial, main = "big cage treatment")
 
@@ -193,8 +196,8 @@ for (i in 1:length(trial)) {
 hist(trial, main = "small cage treatment")
 
 # mean and sd of seeds needed (is the mode more appropriate here?)
-mean(trial)
-sd(trial)
+mean(trial, na.rm = T)
+sd(trial, na.rm = T)
 
 
 ### once we get this mean, we can then frame the question in another way:
@@ -238,8 +241,8 @@ suppressWarnings({
 hist(trial, main = "no cage treatment")
 
 # mean and sd of seeds needed (is the mode more appropriate here?)
-mean(trial)
-sd(trial)
+mean(trial, na.rm = T)
+sd(trial, na.rm = T)
 
 
 ### once we get this mean, we can then frame the question in another way:
