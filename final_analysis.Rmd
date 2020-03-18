@@ -22,27 +22,67 @@ precip <- read_csv("water_year.csv") %>%
   select(-year)
 ```
 
+```{r separate cages}
 
-### model
+yearly_small <- yearlydata %>% 
+  filter(cage == "small")
+yearly_big <- yearlydata %>% 
+  filter(cage == "big")
+yearly_none <- yearlydata %>% 
+  filter(cage == "none")
+```
+
+
+### GLMs
+```{r}
+## fecundity
+fecund_model <- glm(avgseedpods ~ janrain + febrain + marchrain + aprilrain + caged  , data = yearlydata, family = poisson) 
+summary(fecund_model)
+
+
+### germination
+germ_model <- glm(cbind(germination, bank - germination) ~ decrain + janrain, data = yearlydata, family=binomial())
+summary(germ_model)
+
+
+## flower
+flower_model <- glm(cbind(reproductive, earlydeath) ~ febrain + marchrain + aprilrain + caged, data = yearlydata, family = binomial)
+summary(flower_model)
+
+```
+
+
+
 ```{r function}
 
+## find max fecundity for the no cage scenario
+fecund <- yearly_none %>% 
+  filter(reproductive > 0) %>% 
+  select(avgseedpods) 
+
+max_f_none <- max(fecund$avgseedpods)
+
+fecund <- yearly_big %>% 
+  filter(reproductive > 0) %>% 
+  select(avgseedpods) 
+
+max_f_big <- max(fecund$avgseedpods, na.rm = T)
+
+fecund <- yearly_small %>% 
+  filter(reproductive > 0) %>% 
+  select(avgseedpods) 
+
+max_f_small <- max(fecund$avgseedpods)
+  
 
 ## exogenous drivers -- should be generated on a microhabitat/treatment basis
 # d <-  # death rate of seeds (how can we figure this out!?!)
 # f <-  # fecundity - note: need to find a way to model this so we can randomize based on some known mean and sd
 # g <-  # germination rate -- (same note^^^)
 
-fecund_model <- glm(seedpods ~ decrain + janrain + febrain + marchrain + aprilrain + mayrain + cage, data = all_data, family = poisson) 
-summary(fecund_model)
-
-
-#!!!!!!! NOTE: still need to update this based on new bank data
-germ_model <- glm(cbind(germination, bank - germination) ~ decrain + janrain, data = yearlydata, family=binomial())
-summary(germ_model)
 
 sim_lupin <- function(planted, cage_type) {
   
-    
   N <- vector(length = 5)
   b <- vector(length = 6)
   b[1] <- planted
@@ -53,20 +93,23 @@ sim_lupin <- function(planted, cage_type) {
   years <- ceiling(runif(5, 0, 13))
   
   ## get random precip years + add cage type to df to be used w/in predict
-  precip$cage <- cage_type
+  precip$caged <- cage_type
   precip_year <- precip[years,]
   
   f <- predict(fecund_model, precip_year, type = "response") * 2 # x2 for number of sees per pod
   f[f<0] <- 0
-
   
   ## need to figure out the proper distribution for these ( for each treatment type?)
   g <- predict(germ_model, precip_year, type = "response")
   g[g<0] <- 0
+  
+  s <- predict(flower_model, precip_year, type = "response")
+  s[s<0] <- 0
+  
 
   for(year in 1:5) {
-    N[year] <- b[year]* (1 - d) * g[year]
-    b[year + 1] <- (N[year] * f[year]) + (b[year] - N[year])
+    N[year] <- b[year]* (1 - d) * g[year] 
+    b[year + 1] <- (N[year]* s[year] * f[year]) + (b[year] - (N[year]))
   }
   
   res <- data.frame(year = seq(1,5), pop = N[1:5], bank = b[1:5])
@@ -76,7 +119,7 @@ sim_lupin <- function(planted, cage_type) {
   
 }
 
-test <- sim_lupin(1000, "big")
+test <- sim_lupin(1000, "Caged")
 test
 
 ```
@@ -101,9 +144,9 @@ model_table
 ```{r simulate}
 ### how to choose necessary planting
 
-planted <- seq(1000, 6000, 100)
+planted <- seq(100, 1000, 10)
 
-sim_list <- lapply(planted, sim_lupin, "big")
+sim_list <- lapply(planted, sim_lupin, "Caged")
 
 sim <- bind_rows(sim_list)
 seeds_needed <- sim %>% 
@@ -121,13 +164,15 @@ seeds_needed <- sim %>%
 ggplot(sim, aes(year, pop, group = as.factor(scenario), color = as.factor(scenario))) +
   geom_line() +
   geom_hline(yintercept = 5000, linetype = "dashed", size = 1) +
+  scale_y_continuous(limits = c(0,7000)) +
+  theme_bw() +
   theme(legend.position = "none")
 
 
 ```
 
 
-# montecarlo run big cage
+# montecarlo run caged
 ```{r monte carlo}
 ### this is for if we know the mean and sd for death, fecundity, and germination
 ## if any of these are unknown, see the MonteCarlo simulation in ./MonteCarlo.Rmd
@@ -136,16 +181,12 @@ num_trials <- 1000
 
 trial <- vector(length = num_trials)
 
-planted <- seq(1000, 6000, 100)
-<<<<<<< HEAD
+planted <- seq(100, 6000, 100)
+
+
 suppressWarnings({
   for (i in 1:length(trial)) {
-  sim_list <- lapply(planted, sim_lupin, "Big")
-=======
-
-for (i in 1:length(trial)) {
-  sim_list <- lapply(planted, sim_lupin, "big")
->>>>>>> f6892d4e9f2eb4765c48bb1207914a302a3c8a19
+  sim_list <- lapply(planted, sim_lupin, "Caged")
 
   sim <- bind_rows(sim_list)
   
@@ -154,6 +195,8 @@ for (i in 1:length(trial)) {
     filter(scenario == min(scenario)) %>% ### do we want to select the min or average here?
     select(scenario) %>% 
     as.numeric()
+  
+  
   
   trial[i] <- seeds_needed
   
@@ -168,63 +211,19 @@ for (i in 1:length(trial)) {
 })
 
 
-#hist(trial, main = "big cage treatment")
+hist(trial, main = "Caged treatment")
 
 # mean and sd of seeds needed (is the mode more appropriate here?)
-mean(trial)
-sd(trial)
+mean_big <- mean(trial, na.rm = T)
+sd_big <- sd(trial, na.rm = T)
 
+mean_big
+sd_big
 
-### once we get this mean, we can then frame the question in another way:
-## if we plant X# of seeds, what is the probability of getting to N=5000 by year 5
 ```
 
 
 
-# montecarlo run small cage
-```{r monte carlo small}
-### this is for if we know the mean and sd for death, fecundity, and germination
-## if any of these are unknown, see the MonteCarlo simulation in ./MonteCarlo.Rmd
-
-suppressWarnings({ 
-  num_trials <- 1000
-
-trial <- vector(length = num_trials)
-
-planted <- seq(5000, 20000, 100)
-
-for (i in 1:length(trial)) {
-  sim_list <- lapply(planted, sim_lupin, "small")
-
-  sim <- bind_rows(sim_list)
-  
-  seeds_needed <- sim %>% 
-    filter(year == 5 & pop > 5000) %>% 
-    filter(scenario == min(scenario)) %>% ### do we want to select the min or average here?
-    select(scenario) %>% 
-    as.numeric()
-  
-  trial[i] <- seeds_needed
-  
-  # mark progress (for sanity's sake)
-  if(i%%100 == 0) {
-    print(paste(i/length(trial)))
-  }
-
-  
-}})
-
-
-hist(trial, main = "small cage treatment")
-
-# mean and sd of seeds needed (is the mode more appropriate here?)
-mean(trial, na.rm = T)
-sd(trial, na.rm = T)
-
-
-### once we get this mean, we can then frame the question in another way:
-## if we plant X# of seeds, what is the probability of getting to N=5000 by year 5
-```
 
 # montecarlo run no cage
 ```{r monte carlo no}
@@ -235,11 +234,11 @@ num_trials <- 100
 
 trial <- vector(length = num_trials)
 
-planted <- seq(100000, 300000, 20000)
+planted <- seq(1000, 30000, 1000)
 
 suppressWarnings({ 
   for (i in 1:length(trial)) {
-  sim_list <- lapply(planted, sim_lupin, "none")
+  sim_list <- lapply(planted, sim_lupin, "No Cage")
 
   sim <- bind_rows(sim_list)
   
@@ -262,12 +261,13 @@ suppressWarnings({
 
 hist(trial, main = "no cage treatment")
 
-# mean and sd of seeds needed (is the mode more appropriate here?)
-mean(trial, na.rm = T)
-sd(trial, na.rm = T)
+# mean and sd of seeds needed 
+mean_none <- mean(trial, na.rm = T)
+sd_none <- sd(trial, na.rm = T)
+
+mean_none
+sd_none
 
 
-### once we get this mean, we can then frame the question in another way:
-## if we plant X# of seeds, what is the probability of getting to N=5000 by year 5
 ```
 
