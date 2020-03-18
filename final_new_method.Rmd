@@ -122,137 +122,6 @@ model_table
 
 
 
-# single run - big cage
-```{r simulate}
-### how to choose necessary planting
-
-planted <- seq(100, 1000, 10)
-
-sim_list <- lapply(planted, sim_lupin, "Caged")
-
-sim <- bind_rows(sim_list)
-seeds_needed <- sim %>% 
-  filter(year == 5 & pop > 5000) %>% 
-  filter(scenario == min(scenario)) %>% ### do we want to select the min or average here?
-  select(scenario) %>% 
-  as.numeric()
-
-
-## next to do: monte-carlo simulation to see how randomness effects each of these
-
-
-
-# plot the trend
-ggplot(sim, aes(year, pop, group = as.factor(scenario), color = as.factor(scenario))) +
-  geom_line() +
-  geom_hline(yintercept = 5000, linetype = "dashed", size = 1) +
-  scale_y_continuous(limits = c(0,7000)) +
-  theme_bw() +
-  theme(legend.position = "none")
-
-
-```
-
-
-# montecarlo run caged
-```{r monte carlo}
-### this is for if we know the mean and sd for death, fecundity, and germination
-## if any of these are unknown, see the MonteCarlo simulation in ./MonteCarlo.Rmd
-
-num_trials <- 1000
-
-trial <- vector(length = num_trials)
-
-planted <- seq(1, 2001, 10)
-
-
-suppressWarnings({
-  for (i in 1:length(trial)) {
-  sim_list <- lapply(planted, sim_lupin, "Caged")
-
-  sim <- bind_rows(sim_list)
-  
-  seeds_needed <- sim %>% 
-    filter(year == 5 & pop > 5000) %>% 
-    filter(scenario == min(scenario)) %>% ### do we want to select the min or average here?
-    select(scenario) %>% 
-    as.numeric()
-  
-  
-  
-  trial[i] <- seeds_needed
-  
-  # mark progress (for sanity's sake)
-  if(i%%100 == 0) {
-    print(paste(i/length(trial)))
-  }
-
-  
-}
-  
-})
-
-
-hist(trial, main = "Caged treatment")
-
-# mean and sd of seeds needed (is the mode more appropriate here?)
-mean_big <- mean(trial, na.rm = T)
-sd_big <- sd(trial, na.rm = T)
-
-mean_big
-sd_big
-
-```
-
-
-
-
-# montecarlo run no cage
-```{r monte carlo no}
-### this is for if we know the mean and sd for death, fecundity, and germination
-## if any of these are unknown, see the MonteCarlo simulation in ./MonteCarlo.Rmd
-
-num_trials <- 1000
-
-trial <- vector(length = num_trials)
-
-planted <- seq(100, 6000, 100)
-
-suppressWarnings({ 
-  for (i in 1:length(trial)) {
-  sim_list <- lapply(planted, sim_lupin, "No Cage")
-
-  sim <- bind_rows(sim_list)
-  
-  seeds_needed <- sim %>% 
-    filter(year == 5 & pop > 5000) %>% 
-    filter(scenario == min(scenario)) %>% ### do we want to select the min or average here?
-    select(scenario) %>% 
-    as.numeric()
-  
-  trial[i] <- seeds_needed
-  
-  # mark progress (for sanity's sake)
-  if(i%%100 == 0) {
-    print(paste(i/length(trial)))
-  }
-
-  
-}})
-
-
-hist(trial, main = "no cage treatment")
-
-# mean and sd of seeds needed 
-mean_none <- mean(trial, na.rm = T)
-sd_none <- sd(trial, na.rm = T)
-
-mean_none
-sd_none
-
-
-```
-
 ```{r}
 num_trials <- 5000
 
@@ -277,6 +146,10 @@ needed[i] <- 5000/pps
 
 hist(needed)
 
+## summary
+mean_cage <- mean(needed)
+sd_cage <- sd(needed)
+range_cage <- summary(needed)
 
 ```
 
@@ -284,7 +157,7 @@ hist(needed)
 ```{r}
 num_trials <- 5000
 
-needed <- vector()
+needed_no <- vector()
 for (i in 1:num_trials){
   
   single <- sim_lupin(1000, "No Cage")
@@ -295,7 +168,7 @@ pps <- single %>%
   select(pps) %>% 
   as.numeric
 
-needed[i] <- 5000/pps
+needed_no[i] <- 5000/pps
 
  if(i%%1000 == 0) {
     print(paste(i/length(trial)))
@@ -303,21 +176,14 @@ needed[i] <- 5000/pps
   
 }
 
-hist(needed)
+hist(needed_no)
+
+mean_cage <- mean(needed_no)
+sd_cage <- sd(needed_no)
+range_cage <- summary(needed_no)
 
 
 ```
-
-
-
-
-
-
-
-
-
-
-
 
 
 
