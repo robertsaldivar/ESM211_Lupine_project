@@ -1,0 +1,130 @@
+---
+title: "Regression"
+author: "Jamie Miller"
+date: "March 18, 2020"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
+```
+
+
+```{r}
+library(tidyverse)
+library(stargazer)
+
+yearlydata <- read_csv("yearlydata.csv")
+all_data <- read_csv("all_data.csv") #%>% # In original csv, search and replaced cage column "Small" with "small" and "Big" with "big"
+  #filter(janrain != "NA")
+precip <- read_csv("water_year.csv") %>% 
+  select(-year)
+```
+cage vs not
+
+select which munth ot use for rainfall
+
+### model
+```{r function}
+
+
+## exogenous drivers -- should be generated on a microhabitat/treatment basis
+# d <-  # death rate of seeds (how can we figure this out!?!)
+# f <-  # fecundity - note: need to find a way to model this so we can randomize based on some known mean and sd
+# g <-  # germination rate -- (same note^^^)
+
+fecund_model <- glm(seedpods ~ decrain + janrain + febrain + marchrain + aprilrain + mayrain + cage, data = all_data, family = poisson) 
+summary(fecund_model)
+
+
+#!!!!!!! NOTE: still need to update this based on new bank data
+germ_model <- glm(cbind(germination, bank - germination) ~ decrain + janrain, data = yearlydata, family=binomial())
+summary(germ_model)
+
+sim_lupin <- function(planted, cage_type) {
+  
+    
+  N <- vector(length = 5)
+  b <- vector(length = 6)
+  b[1] <- planted
+  
+  d <- .17
+  
+  ## randomize years to be selected
+  years <- ceiling(runif(5, 0, 13))
+  
+  ## get random precip years + add cage type to df to be used w/in predict
+  precip$cage <- cage_type
+  precip_year <- precip[years,]
+  
+  f <- predict(fecund_model, precip_year, type = "response") * 2 # x2 for number of sees per pod
+  f[f<0] <- 0
+
+  
+  ## need to figure out the proper distribution for these ( for each treatment type?)
+  g <- predict(germ_model, precip_year, type = "response")
+  g[g<0] <- 0
+
+  for(year in 1:5) {
+    N[year] <- b[year]* (1 - d) * g[year]
+    b[year + 1] <- (N[year] * f[year]) + (b[year] - N[year])
+  }
+  
+  res <- data.frame(year = seq(1,5), pop = N[1:5], bank = b[1:5])
+  res$scenario <- planted
+  
+  return(res)
+  
+}
+
+test <- sim_lupin(1000, "big")
+test
+
+```
+
+```{r stargazer tables, results = 'asis', echo = FALSE}
+# Stargazer table of germination glm
+library(stargazer)
+
+model_table <- stargazer(germ_model, fecund_model,
+                        type = "html",
+                        single.row = TRUE,
+                        dep.var.labels = c("Germination","Fecundity"),
+                        covariate.labels = c("Dec Rain","Jan Rain","Feb Rain","Mar Rain","Apr Rain","May Rain","Big Cage","No Cage","Small Cage")
+                        )
+model_table
+
+```
+
+
+
+```{r stargazer tables, results = 'asis', echo = FALSE}
+# Stargazer table of germination glm
+library(stargazer)
+
+germ_table <- stargazer(germ_model,
+                        type = "html",
+                        single.row = TRUE,
+                        dep.var.labels = c("Germination"),
+                        covariate.labels = c("Dec Rain","Jan Rain","Feb Rain","Mar Rain","Apr Rain","May Rain","Big Cage","No Cage","Small Cage")
+                        )
+germ_table
+
+```
+
+```{r stargazer tables, results = 'asis', echo = FALSE}
+# Stargazer table of germination glm
+library(stargazer)
+
+fecund_table <- stargazer(fecund_model,
+                        type = "html",
+                        single.row = TRUE,
+                        dep.var.labels = c("Fecundity"),
+                        covariate.labels = c("Dec Rain","Jan Rain","Feb Rain","Mar Rain","Apr Rain","May Rain","Big Cage","No Cage","Small Cage")
+                        )
+fecund_table
+
+```
+
+
