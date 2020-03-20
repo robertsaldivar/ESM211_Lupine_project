@@ -185,7 +185,11 @@ summary {
 </div>
 
 
+<p>cage vs not</p>
+<p>select which munth ot use for rainfall</p>
 <pre class="r"><code>library(tidyverse)
+library(knitr)
+library(kableExtra)
 library(stargazer)
 
 yearlydata &lt;- read_csv(&quot;yearlydata.csv&quot;)
@@ -193,47 +197,40 @@ all_data &lt;- read_csv(&quot;all_data.csv&quot;) #%&gt;% # In original csv, sea
   #filter(janrain != &quot;NA&quot;)
 precip &lt;- read_csv(&quot;water_year.csv&quot;) %&gt;% 
   select(-year)</code></pre>
-<div id="model" class="section level3">
-<h3>model</h3>
-<pre class="r"><code>## exogenous drivers -- should be generated on a microhabitat/treatment basis
-# d &lt;-  # death rate of seeds (how can we figure this out!?!)
-# f &lt;-  # fecundity - note: need to find a way to model this so we can randomize based on some known mean and sd
-# g &lt;-  # germination rate -- (same note^^^)
-
-fecund_model &lt;- glm(seedpods ~ decrain + janrain + febrain + marchrain + aprilrain + mayrain + cage, data = all_data, family = poisson) 
+<div id="glms" class="section level3">
+<h3>GLMs</h3>
+<pre class="r"><code>## fecundity
+fecund_model &lt;- glm(avgseedpods ~ janrain + febrain + marchrain + aprilrain + caged  , data = yearlydata, family = poisson) 
 summary(fecund_model)</code></pre>
 <pre><code>## 
 ## Call:
-## glm(formula = seedpods ~ decrain + janrain + febrain + marchrain + 
-##     aprilrain + mayrain + cage, family = poisson, data = all_data)
+## glm(formula = avgseedpods ~ janrain + febrain + marchrain + aprilrain + 
+##     caged, family = poisson, data = yearlydata)
 ## 
 ## Deviance Residuals: 
-##    Min      1Q  Median      3Q     Max  
-## -4.726  -4.726  -3.714  -0.999  32.284  
+##     Min       1Q   Median       3Q      Max  
+## -6.4035  -6.2067  -2.3018  -0.7402  28.5494  
 ## 
-## Coefficients: (5 not defined because of singularities)
+## Coefficients:
 ##               Estimate Std. Error z value Pr(&gt;|z|)    
-## (Intercept)   1.622772   0.076123  21.318  &lt; 2e-16 ***
-## decrain       0.032982   0.003175  10.387  &lt; 2e-16 ***
-## janrain             NA         NA      NA       NA    
-## febrain             NA         NA      NA       NA    
-## marchrain           NA         NA      NA       NA    
-## aprilrain           NA         NA      NA       NA    
-## mayrain             NA         NA      NA       NA    
-## cagenone    -13.079616 172.654523  -0.076  0.93961    
-## cagesmall     0.153921   0.057386   2.682  0.00731 ** 
+## (Intercept)  -7.294455   0.752596  -9.692   &lt;2e-16 ***
+## janrain       0.102986   0.007268  14.170   &lt;2e-16 ***
+## febrain      -0.094947   0.006302 -15.065   &lt;2e-16 ***
+## marchrain    -0.050462   0.002251 -22.416   &lt;2e-16 ***
+## aprilrain     0.355775   0.021680  16.410   &lt;2e-16 ***
+## cagedNo Cage -2.046332   0.086181 -23.745   &lt;2e-16 ***
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
 ## (Dispersion parameter for poisson family taken to be 1)
 ## 
-##     Null deviance: 8614.1  on 282  degrees of freedom
-## Residual deviance: 8473.7  on 279  degrees of freedom
-##   (79 observations deleted due to missingness)
-## AIC: 8977.2
+##     Null deviance: 10796.9  on 273  degrees of freedom
+## Residual deviance:  8225.2  on 268  degrees of freedom
+##   (50 observations deleted due to missingness)
+## AIC: Inf
 ## 
-## Number of Fisher Scoring iterations: 9</code></pre>
-<pre class="r"><code>#!!!!!!! NOTE: still need to update this based on new bank data
+## Number of Fisher Scoring iterations: 8</code></pre>
+<pre class="r"><code>### germination
 germ_model &lt;- glm(cbind(germination, bank - germination) ~ decrain + janrain, data = yearlydata, family=binomial())
 summary(germ_model)</code></pre>
 <pre><code>## 
@@ -260,66 +257,51 @@ summary(germ_model)</code></pre>
 ## AIC: 1826.6
 ## 
 ## Number of Fisher Scoring iterations: 5</code></pre>
-<pre class="r"><code>sim_lupin &lt;- function(planted, cage_type) {
-  
-    
-  N &lt;- vector(length = 5)
-  b &lt;- vector(length = 6)
-  b[1] &lt;- planted
-  
-  d &lt;- .17
-  
-  ## randomize years to be selected
-  years &lt;- ceiling(runif(5, 0, 13))
-  
-  ## get random precip years + add cage type to df to be used w/in predict
-  precip$cage &lt;- cage_type
-  precip_year &lt;- precip[years,]
-  
-  f &lt;- predict(fecund_model, precip_year, type = &quot;response&quot;) * 2 # x2 for number of sees per pod
-  f[f&lt;0] &lt;- 0
-
-  
-  ## need to figure out the proper distribution for these ( for each treatment type?)
-  g &lt;- predict(germ_model, precip_year, type = &quot;response&quot;)
-  g[g&lt;0] &lt;- 0
-
-  for(year in 1:5) {
-    N[year] &lt;- b[year]* (1 - d) * g[year]
-    b[year + 1] &lt;- (N[year] * f[year]) + (b[year] - N[year])
-  }
-  
-  res &lt;- data.frame(year = seq(1,5), pop = N[1:5], bank = b[1:5])
-  res$scenario &lt;- planted
-  
-  return(res)
-  
-}
-
-test &lt;- sim_lupin(1000, &quot;big&quot;)
-test</code></pre>
-<pre><code>##   year      pop     bank scenario
-## 1    1 13.90480 1000.000     1000
-## 2    2 28.23454 1164.263     1000
-## 3    3 29.45413 1780.922     1000
-## 4    4 23.34271 2240.794     1000
-## 5    5 34.12254 2454.011     1000</code></pre>
+<pre class="r"><code>## flower
+flower_model &lt;- glm(cbind(reproductive, earlydeath) ~ febrain + marchrain + aprilrain + caged, data = yearlydata, family = binomial)
+summary(flower_model)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = cbind(reproductive, earlydeath) ~ febrain + marchrain + 
+##     aprilrain + caged, family = binomial, data = yearlydata)
+## 
+## Deviance Residuals: 
+##    Min      1Q  Median      3Q     Max  
+## -3.044  -0.312   0.000   0.000   3.731  
+## 
+## Coefficients:
+##               Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept)   2.081656   0.419873   4.958 7.13e-07 ***
+## febrain       0.021659   0.002316   9.353  &lt; 2e-16 ***
+## marchrain     0.009586   0.003398   2.821  0.00479 ** 
+## aprilrain    -0.217714   0.027510  -7.914 2.49e-15 ***
+## cagedNo Cage -1.521053   0.535881  -2.838  0.00453 ** 
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 423.01  on 134  degrees of freedom
+## Residual deviance: 263.18  on 130  degrees of freedom
+## AIC: 369.42
+## 
+## Number of Fisher Scoring iterations: 5</code></pre>
 <table style="text-align:center">
 <tr>
-<td colspan="3" style="border-bottom: 1px solid black">
+<td colspan="2" style="border-bottom: 1px solid black">
 </td>
 </tr>
 <tr>
 <td style="text-align:left">
 </td>
-<td colspan="2">
+<td>
 <em>Dependent variable:</em>
 </td>
 </tr>
 <tr>
 <td>
 </td>
-<td colspan="2" style="border-bottom: 1px solid black">
+<td colspan="1" style="border-bottom: 1px solid black">
 </td>
 </tr>
 <tr>
@@ -328,32 +310,9 @@ test</code></pre>
 <td>
 Germination
 </td>
-<td>
-Fecundity
-</td>
 </tr>
 <tr>
-<td style="text-align:left">
-</td>
-<td>
-<em>logistic</em>
-</td>
-<td>
-<em>Poisson</em>
-</td>
-</tr>
-<tr>
-<td style="text-align:left">
-</td>
-<td>
-(1)
-</td>
-<td>
-(2)
-</td>
-</tr>
-<tr>
-<td colspan="3" style="border-bottom: 1px solid black">
+<td colspan="2" style="border-bottom: 1px solid black">
 </td>
 </tr>
 <tr>
@@ -363,9 +322,6 @@ Dec Rain
 <td>
 0.027<sup>***</sup> (0.001)
 </td>
-<td>
-0.033<sup>***</sup> (0.003)
-</td>
 </tr>
 <tr>
 <td style="text-align:left">
@@ -374,78 +330,17 @@ Jan Rain
 <td>
 -0.004<sup>***</sup> (0.001)
 </td>
-<td>
-</td>
 </tr>
 <tr>
 <td style="text-align:left">
-Feb Rain
-</td>
-<td>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td style="text-align:left">
-Mar Rain
-</td>
-<td>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td style="text-align:left">
-Apr Rain
-</td>
-<td>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td style="text-align:left">
-May Rain
-</td>
-<td>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td style="text-align:left">
-Big Cage
-</td>
-<td>
-</td>
-<td>
--13.080 (172.655)
-</td>
-</tr>
-<tr>
-<td style="text-align:left">
-No Cage
-</td>
-<td>
-</td>
-<td>
-0.154<sup>***</sup> (0.057)
-</td>
-</tr>
-<tr>
-<td style="text-align:left">
-Small Cage
+Constant
 </td>
 <td>
 -4.090<sup>***</sup> (0.107)
 </td>
-<td>
-1.623<sup>***</sup> (0.076)
-</td>
 </tr>
 <tr>
-<td colspan="3" style="border-bottom: 1px solid black">
+<td colspan="2" style="border-bottom: 1px solid black">
 </td>
 </tr>
 <tr>
@@ -455,9 +350,6 @@ Observations
 <td>
 324
 </td>
-<td>
-283
-</td>
 </tr>
 <tr>
 <td style="text-align:left">
@@ -465,9 +357,6 @@ Log Likelihood
 </td>
 <td>
 -910.322
-</td>
-<td>
--4,484.584
 </td>
 </tr>
 <tr>
@@ -477,19 +366,16 @@ Akaike Inf. Crit.
 <td>
 1,826.644
 </td>
-<td>
-8,977.167
-</td>
 </tr>
 <tr>
-<td colspan="3" style="border-bottom: 1px solid black">
+<td colspan="2" style="border-bottom: 1px solid black">
 </td>
 </tr>
 <tr>
 <td style="text-align:left">
 <em>Note:</em>
 </td>
-<td colspan="2" style="text-align:right">
+<td style="text-align:right">
 <sup><em></sup>p&lt;0.1; <sup><strong></sup>p&lt;0.05; <sup></strong></em></sup>p&lt;0.01
 </td>
 </tr>
@@ -498,13 +384,13 @@ Akaike Inf. Crit.
 [2] “
 <table style="\&quot;text-align:center\&quot;">
 <tr>
-<td colspan="\&quot;3\&quot;" style="\&quot;border-bottom:" 1px solid black\">
+<td colspan="\&quot;2\&quot;" style="\&quot;border-bottom:" 1px solid black\">
 </td>
 </tr>
 <tr>
 <td style="\&quot;text-align:left\&quot;">
 </td>
-<td colspan="\&quot;2\&quot;">
+<td>
 <em>Dependent variable:</em>
 </td>
 </tr>
@@ -513,7 +399,7 @@ Akaike Inf. Crit.
 <tr>
 <td>
 </td>
-<td colspan="\&quot;2\&quot;" style="\&quot;border-bottom:" 1px solid black\">
+<td colspan="\&quot;1\&quot;" style="\&quot;border-bottom:" 1px solid black\">
 </td>
 </tr>
 &quot;<br />
@@ -524,38 +410,11 @@ Akaike Inf. Crit.
 <td>
 Germination
 </td>
-<td>
-Fecundity
-</td>
 </tr>
 &quot;<br />
 [5] “
 <tr>
-<td style="\&quot;text-align:left\&quot;">
-</td>
-<td>
-<em>logistic</em>
-</td>
-<td>
-<em>Poisson</em>
-</td>
-</tr>
-&quot;<br />
-[6] “
-<tr>
-<td style="\&quot;text-align:left\&quot;">
-</td>
-<td>
-(1)
-</td>
-<td>
-(2)
-</td>
-</tr>
-&quot;<br />
-[7] “
-<tr>
-<td colspan="\&quot;3\&quot;" style="\&quot;border-bottom:" 1px solid black\">
+<td colspan="\&quot;2\&quot;" style="\&quot;border-bottom:" 1px solid black\">
 </td>
 </tr>
 <tr>
@@ -565,12 +424,9 @@ Dec Rain
 <td>
 0.027<sup>***</sup> (0.001)
 </td>
-<td>
-0.033<sup>***</sup> (0.003)
-</td>
 </tr>
 &quot;<br />
-[8] “
+[6] “
 <tr>
 <td style="\&quot;text-align:left\&quot;">
 Jan Rain
@@ -578,94 +434,21 @@ Jan Rain
 <td>
 -0.004<sup>***</sup> (0.001)
 </td>
-<td>
-</td>
 </tr>
 &quot;<br />
-[9] “
+[7] “
 <tr>
 <td style="\&quot;text-align:left\&quot;">
-Feb Rain
-</td>
-<td>
-</td>
-<td>
-</td>
-</tr>
-&quot;<br />
-[10] “
-<tr>
-<td style="\&quot;text-align:left\&quot;">
-Mar Rain
-</td>
-<td>
-</td>
-<td>
-</td>
-</tr>
-&quot;<br />
-[11] “
-<tr>
-<td style="\&quot;text-align:left\&quot;">
-Apr Rain
-</td>
-<td>
-</td>
-<td>
-</td>
-</tr>
-&quot;<br />
-[12] “
-<tr>
-<td style="\&quot;text-align:left\&quot;">
-May Rain
-</td>
-<td>
-</td>
-<td>
-</td>
-</tr>
-&quot;<br />
-[13] “
-<tr>
-<td style="\&quot;text-align:left\&quot;">
-Big Cage
-</td>
-<td>
-</td>
-<td>
--13.080 (172.655)
-</td>
-</tr>
-&quot;<br />
-[14] “
-<tr>
-<td style="\&quot;text-align:left\&quot;">
-No Cage
-</td>
-<td>
-</td>
-<td>
-0.154<sup>***</sup> (0.057)
-</td>
-</tr>
-&quot;<br />
-[15] “
-<tr>
-<td style="\&quot;text-align:left\&quot;">
-Small Cage
+Constant
 </td>
 <td>
 -4.090<sup>***</sup> (0.107)
 </td>
-<td>
-1.623<sup>***</sup> (0.076)
-</td>
 </tr>
 &quot;<br />
-[16] “
+[8] “
 <tr>
-<td colspan="\&quot;3\&quot;" style="\&quot;border-bottom:" 1px solid black\">
+<td colspan="\&quot;2\&quot;" style="\&quot;border-bottom:" 1px solid black\">
 </td>
 </tr>
 <tr>
@@ -675,12 +458,9 @@ Observations
 <td>
 324
 </td>
-<td>
-283
-</td>
 </tr>
 &quot;<br />
-[17] “
+[9] “
 <tr>
 <td style="\&quot;text-align:left\&quot;">
 Log Likelihood
@@ -688,12 +468,9 @@ Log Likelihood
 <td>
 -910.322
 </td>
-<td>
--4,484.584
-</td>
 </tr>
 &quot;<br />
-[18] “
+[10] “
 <tr>
 <td style="\&quot;text-align:left\&quot;">
 Akaike Inf. Crit.
@@ -701,25 +478,532 @@ Akaike Inf. Crit.
 <td>
 1,826.644
 </td>
-<td>
-8,977.167
-</td>
 </tr>
 &quot;<br />
-[19] “
+[11] “
 <tr>
-<td colspan="\&quot;3\&quot;" style="\&quot;border-bottom:" 1px solid black\">
+<td colspan="\&quot;2\&quot;" style="\&quot;border-bottom:" 1px solid black\">
 </td>
 </tr>
 <tr>
 <td style="\&quot;text-align:left\&quot;">
 <em>Note:</em>
 </td>
-<td colspan="\&quot;2\&quot;" style="\&quot;text-align:right\&quot;">
+<td style="\&quot;text-align:right\&quot;">
 <sup><em></sup>p&lt;0.1; <sup><strong></sup>p&lt;0.05; <sup></strong></em></sup>p&lt;0.01
 </td>
 </tr>
-&quot; [20] “
+&quot; [12] “
+</table>
+<p>&quot;</p>
+<table style="text-align:center">
+<tr>
+<td colspan="2" style="border-bottom: 1px solid black">
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+<em>Dependent variable:</em>
+</td>
+</tr>
+<tr>
+<td>
+</td>
+<td colspan="1" style="border-bottom: 1px solid black">
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+Fecundity
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-bottom: 1px solid black">
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Jan Rain
+</td>
+<td>
+0.103<sup>***</sup> (0.007)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Feb Rain
+</td>
+<td>
+-0.095<sup>***</sup> (0.006)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Mar Rain
+</td>
+<td>
+-0.050<sup>***</sup> (0.002)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Apr Rain
+</td>
+<td>
+0.356<sup>***</sup> (0.022)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+No Cage
+</td>
+<td>
+-2.046<sup>***</sup> (0.086)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Constant
+</td>
+<td>
+-7.294<sup>***</sup> (0.753)
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-bottom: 1px solid black">
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Observations
+</td>
+<td>
+274
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Log Likelihood
+</td>
+<td>
+-Inf.000
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Akaike Inf. Crit.
+</td>
+<td>
+Inf.000
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-bottom: 1px solid black">
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+<em>Note:</em>
+</td>
+<td style="text-align:right">
+<sup><em></sup>p&lt;0.1; <sup><strong></sup>p&lt;0.05; <sup></strong></em></sup>p&lt;0.01
+</td>
+</tr>
+</table>
+[1] “”<br />
+[2] “
+<table style="\&quot;text-align:center\&quot;">
+<tr>
+<td colspan="\&quot;2\&quot;" style="\&quot;border-bottom:" 1px solid black\">
+</td>
+</tr>
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+</td>
+<td>
+<em>Dependent variable:</em>
+</td>
+</tr>
+&quot;<br />
+[3] “
+<tr>
+<td>
+</td>
+<td colspan="\&quot;1\&quot;" style="\&quot;border-bottom:" 1px solid black\">
+</td>
+</tr>
+&quot;<br />
+[4] “
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+</td>
+<td>
+Fecundity
+</td>
+</tr>
+&quot;<br />
+[5] “
+<tr>
+<td colspan="\&quot;2\&quot;" style="\&quot;border-bottom:" 1px solid black\">
+</td>
+</tr>
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+Jan Rain
+</td>
+<td>
+0.103<sup>***</sup> (0.007)
+</td>
+</tr>
+&quot;<br />
+[6] “
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+Feb Rain
+</td>
+<td>
+-0.095<sup>***</sup> (0.006)
+</td>
+</tr>
+&quot;<br />
+[7] “
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+Mar Rain
+</td>
+<td>
+-0.050<sup>***</sup> (0.002)
+</td>
+</tr>
+&quot;<br />
+[8] “
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+Apr Rain
+</td>
+<td>
+0.356<sup>***</sup> (0.022)
+</td>
+</tr>
+&quot;<br />
+[9] “
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+No Cage
+</td>
+<td>
+-2.046<sup>***</sup> (0.086)
+</td>
+</tr>
+&quot;<br />
+[10] “
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+Constant
+</td>
+<td>
+-7.294<sup>***</sup> (0.753)
+</td>
+</tr>
+&quot;<br />
+[11] “
+<tr>
+<td colspan="\&quot;2\&quot;" style="\&quot;border-bottom:" 1px solid black\">
+</td>
+</tr>
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+Observations
+</td>
+<td>
+274
+</td>
+</tr>
+&quot;<br />
+[12] “
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+Log Likelihood
+</td>
+<td>
+-Inf.000
+</td>
+</tr>
+&quot;<br />
+[13] “
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+Akaike Inf. Crit.
+</td>
+<td>
+Inf.000
+</td>
+</tr>
+&quot;<br />
+[14] “
+<tr>
+<td colspan="\&quot;2\&quot;" style="\&quot;border-bottom:" 1px solid black\">
+</td>
+</tr>
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+<em>Note:</em>
+</td>
+<td style="\&quot;text-align:right\&quot;">
+<sup><em></sup>p&lt;0.1; <sup><strong></sup>p&lt;0.05; <sup></strong></em></sup>p&lt;0.01
+</td>
+</tr>
+&quot; [15] “
+</table>
+<p>&quot;</p>
+<table style="text-align:center">
+<tr>
+<td colspan="2" style="border-bottom: 1px solid black">
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+<em>Dependent variable:</em>
+</td>
+</tr>
+<tr>
+<td>
+</td>
+<td colspan="1" style="border-bottom: 1px solid black">
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+Flower
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-bottom: 1px solid black">
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Feb Rain
+</td>
+<td>
+0.022<sup>***</sup> (0.002)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Mar Rain
+</td>
+<td>
+0.010<sup>***</sup> (0.003)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Apr Rain
+</td>
+<td>
+-0.218<sup>***</sup> (0.028)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+No Cage
+</td>
+<td>
+-1.521<sup>***</sup> (0.536)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Constant
+</td>
+<td>
+2.082<sup>***</sup> (0.420)
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-bottom: 1px solid black">
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Observations
+</td>
+<td>
+324
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Log Likelihood
+</td>
+<td>
+-179.710
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Akaike Inf. Crit.
+</td>
+<td>
+369.421
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-bottom: 1px solid black">
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+<em>Note:</em>
+</td>
+<td style="text-align:right">
+<sup><em></sup>p&lt;0.1; <sup><strong></sup>p&lt;0.05; <sup></strong></em></sup>p&lt;0.01
+</td>
+</tr>
+</table>
+[1] “”<br />
+[2] “
+<table style="\&quot;text-align:center\&quot;">
+<tr>
+<td colspan="\&quot;2\&quot;" style="\&quot;border-bottom:" 1px solid black\">
+</td>
+</tr>
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+</td>
+<td>
+<em>Dependent variable:</em>
+</td>
+</tr>
+&quot;<br />
+[3] “
+<tr>
+<td>
+</td>
+<td colspan="\&quot;1\&quot;" style="\&quot;border-bottom:" 1px solid black\">
+</td>
+</tr>
+&quot;<br />
+[4] “
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+</td>
+<td>
+Flower
+</td>
+</tr>
+&quot;<br />
+[5] “
+<tr>
+<td colspan="\&quot;2\&quot;" style="\&quot;border-bottom:" 1px solid black\">
+</td>
+</tr>
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+Feb Rain
+</td>
+<td>
+0.022<sup>***</sup> (0.002)
+</td>
+</tr>
+&quot;<br />
+[6] “
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+Mar Rain
+</td>
+<td>
+0.010<sup>***</sup> (0.003)
+</td>
+</tr>
+&quot;<br />
+[7] “
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+Apr Rain
+</td>
+<td>
+-0.218<sup>***</sup> (0.028)
+</td>
+</tr>
+&quot;<br />
+[8] “
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+No Cage
+</td>
+<td>
+-1.521<sup>***</sup> (0.536)
+</td>
+</tr>
+&quot;<br />
+[9] “
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+Constant
+</td>
+<td>
+2.082<sup>***</sup> (0.420)
+</td>
+</tr>
+&quot;<br />
+[10] “
+<tr>
+<td colspan="\&quot;2\&quot;" style="\&quot;border-bottom:" 1px solid black\">
+</td>
+</tr>
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+Observations
+</td>
+<td>
+324
+</td>
+</tr>
+&quot;<br />
+[11] “
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+Log Likelihood
+</td>
+<td>
+-179.710
+</td>
+</tr>
+&quot;<br />
+[12] “
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+Akaike Inf. Crit.
+</td>
+<td>
+369.421
+</td>
+</tr>
+&quot;<br />
+[13] “
+<tr>
+<td colspan="\&quot;2\&quot;" style="\&quot;border-bottom:" 1px solid black\">
+</td>
+</tr>
+<tr>
+<td style="\&quot;text-align:left\&quot;">
+<em>Note:</em>
+</td>
+<td style="\&quot;text-align:right\&quot;">
+<sup><em></sup>p&lt;0.1; <sup><strong></sup>p&lt;0.05; <sup></strong></em></sup>p&lt;0.01
+</td>
+</tr>
+&quot; [14] “
 </table>
 <p>&quot;</p>
 </div>
