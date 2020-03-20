@@ -14,6 +14,8 @@ knitr::opts_chunk$set(echo = TRUE, warning = F, message = F, echo = T)
 
 ```{r}
 library(tidyverse)
+library(knitr)
+library(kableExtra)
 library(stargazer)
 
 yearlydata <- read_csv("yearlydata.csv")
@@ -126,6 +128,7 @@ model_table
 num_trials <- 5000
 
 needed <- vector()
+suppressWarnings({ 
 for (i in 1:num_trials){
   
   single <- sim_lupin(1000, "Caged")
@@ -138,18 +141,19 @@ pps <- single %>%
 
 needed[i] <- 5000/pps
 
- if(i%%1000 == 0) {
-    print(paste(i/length(trial)))
-  }
-  
-}
 
-hist(needed)
+}})
+
+hist(needed, main = "caged")
 
 ## summary
 mean_cage <- mean(needed)
 sd_cage <- sd(needed)
 range_cage <- summary(needed)
+
+mean_cage 
+sd_cage
+range_cage 
 
 ```
 
@@ -158,6 +162,8 @@ range_cage <- summary(needed)
 num_trials <- 5000
 
 needed_no <- vector()
+
+suppressWarnings({ 
 for (i in 1:num_trials){
   
   single <- sim_lupin(1000, "No Cage")
@@ -170,23 +176,37 @@ pps <- single %>%
 
 needed_no[i] <- 5000/pps
 
- if(i%%1000 == 0) {
-    print(paste(i/length(trial)))
-  }
   
-}
+}})
 
-hist(needed_no)
+hist(needed_no, main = "No Cage")
 
 mean_cage <- mean(needed_no)
 sd_cage <- sd(needed_no)
 range_cage <- summary(needed_no)
+
+mean_cage 
+sd_cage 
+range_cage 
 
 
 ```
 
 
 
+## table of observed data by cage type
+```{r}
+test <- yearlydata %>% 
+  group_by(current.year, caged) %>% 
+  summarise(
+    total = sum(germination)
+  )
+test
+  
+table <- test %>% 
+  spread(caged, total)
 
+kable(table)
+```
 
 
