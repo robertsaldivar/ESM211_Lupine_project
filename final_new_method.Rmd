@@ -195,7 +195,7 @@ range_cage
 
 
 ## table of observed data by cage type
-```{r}
+```{r, fig.width=4}
 test <- yearlydata %>% 
   group_by(current.year, caged) %>% 
   summarise(
@@ -206,7 +206,65 @@ test
 table <- test %>% 
   spread(caged, total)
 
-kable(table)
+kable(table) %>% 
+  kable_styling()
 ```
+
+
+
+# plot
+```{r plots}
+new_needed <- needed
+new_no <- needed_no
+
+## if larger than some value, turn into other value
+new_needed[new_needed > 4800] <- 4801
+new_no[new_no > 48000] <- 48001
+
+caged <- data.frame(count = new_needed)
+no_cage <- data.frame(count = new_no)
+
+
+
+ggplot(caged, aes(count)) +
+  geom_histogram(breaks = seq(0,5000,200),
+                 col = "black",
+                 fill = "grey") +
+  scale_x_continuous(limits=c(0, 5000), breaks=c(seq(0, 5000, by=200)), labels=c(seq(0,4800, by=200), "5000+"), expand = c(0,10)) +
+  scale_y_continuous(expand = c(0,0)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Number of seeds needed")
+
+ggplot(no_cage, aes(count)) +
+  geom_histogram(breaks = seq(0,50000,2000),
+                 col = "black",
+                 fill = "grey") +
+  scale_x_continuous(limits=c(0, 50000), breaks=c(seq(0, 50000, by=2000)), labels=c(seq(0,48000, by=2000), "50000+"), expand = c(0,10)) +
+  scale_y_continuous(expand = c(0,0)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  +
+  labs(x = "Number of seeds needed")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
